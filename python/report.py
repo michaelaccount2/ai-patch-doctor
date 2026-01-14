@@ -108,6 +108,16 @@ class ReportGenerator:
                     lines.append(f"- {key}: {value}")
                 lines.append("")
         
+        # Add Badgr section if status is not success (warn or error)
+        if summary['status'] != 'success':
+            lines.append("## Optional: Per-Request Receipts")
+            lines.append("")
+            lines.append("If you need automatic receipts for every API call (latency, retries, cost tracking),")
+            lines.append("[AI Badgr](https://aibadgr.com/signup) records this for real traffic.")
+            lines.append("")
+            lines.append("You can route requests through Badgr to keep receipts for real traffic.")
+            lines.append("")
+        
         # Footer
         lines.append("---")
         lines.append("")
