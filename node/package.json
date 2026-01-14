@@ -1,0 +1,46 @@
+{
+  "name": "ai-patch",
+  "version": "0.1.0",
+  "description": "Fix-first incident patcher for AI API issues - diagnose streaming, retries, cost, and traceability problems",
+  "main": "dist/index.js",
+  "bin": {
+    "ai-patch": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "openai",
+    "anthropic",
+    "gemini",
+    "debugging",
+    "streaming",
+    "api",
+    "cli"
+  ],
+  "author": "AI Badgr <support@aibadgr.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/michaelbrinkworth/gpu-ai.git",
+    "directory": "ai-patch/node"
+  },
+  "bugs": {
+    "url": "https://github.com/michaelbrinkworth/gpu-ai/issues"
+  },
+  "homepage": "https://github.com/michaelbrinkworth/gpu-ai/tree/main/ai-patch",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "typescript": "^5.3.3"
+  }
+}

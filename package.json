@@ -1,0 +1,15 @@
+{
+  "name": "ai-patch-tests",
+  "version": "1.0.0",
+  "description": "Test suite for AI Patch Doctor",
+  "scripts": {
+    "test": "jest"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/ai-patch.test.js"]
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

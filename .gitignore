@@ -1,0 +1,88 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+
+# Logs
+*.log
+logs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+test.db
+*.db
+
+# AI Patch - generated reports
+ai-patch-reports/
+
+# Model files (large)
+*.bin
+*.pt
+*.pth
+*.onnx
+*.safetensors
+
+# Redis data
+dump.rdb
+
+# Node.js (for tests and frontend)
+node_modules/
+.next/
+out/
+.vercel
+.turbo
+
+# Keep package-lock.json in frontend directory
+!frontend/package-lock.json
+/.hf_cache
+.env.example
+*.db
