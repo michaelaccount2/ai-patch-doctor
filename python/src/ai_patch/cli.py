@@ -5,6 +5,7 @@ import sys
 import os
 import time
 import json
+import getpass
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -14,7 +15,7 @@ import click
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../../ai-patch-shared/python'))
 from checks import streaming, retries, cost, trace
 from report import ReportGenerator
-from config import Config
+from config import Config, load_saved_config, save_config
 
 
 @click.group(invoke_without_command=True)
@@ -69,12 +70,57 @@ def doctor(target: Optional[str]):
     }
     provider = provider_map.get(provider_choice, 'openai-compatible')
     
-    # Auto-detect config
+    # Load saved config first
+    saved_config = load_saved_config()
+    
+    # Auto-detect config from env vars
     config = Config.auto_detect(provider)
     
+    # If saved config exists, use it to fill in missing values
+    if saved_config:
+        if saved_config.get('apiKey') and not config.api_key:
+            config.api_key = saved_config['apiKey']
+        if saved_config.get('baseUrl') and not config.base_url:
+            config.base_url = saved_config['baseUrl']
+    
+    # If still missing config, prompt for it
+    prompted_api_key = None
+    prompted_base_url = None
+    
     if not config.is_valid():
-        click.echo("\n❌ Missing configuration:")
-        click.echo(f"   Set {config.get_missing_vars()}")
+        click.echo("\n⚙️  Configuration needed\n")
+        
+        # Prompt for API key if missing
+        if not config.api_key:
+            prompted_api_key = getpass.getpass('API key not found. Paste your API key (input will be hidden): ')
+            config.api_key = prompted_api_key
+        
+        # Prompt for base URL if missing
+        if not config.base_url:
+            default_url = 'https://api.anthropic.com' if provider == 'anthropic' else \
+                          'https://generativelanguage.googleapis.com' if provider == 'gemini' else \
+                          'https://api.openai.com'
+            
+            prompted_base_url = click.prompt(f'API URL? (Enter for {default_url})', 
+                                            default=default_url, 
+                                            show_default=False)
+            config.base_url = prompted_base_url
+        
+        # Ask if user wants to save config
+        if prompted_api_key or prompted_base_url:
+            save_answer = click.prompt('Save for next time? (y/N)', 
+                                      default='n', 
+                                      show_default=False)
+            if save_answer.lower() == 'y':
+                save_config(
+                    api_key=prompted_api_key or config.api_key,
+                    base_url=prompted_base_url or config.base_url
+                )
+                click.echo('✓ Configuration saved to ~/.ai-patch/config.json\n')
+    
+    # Final validation - if still invalid after prompts, user likely cancelled
+    if not config.is_valid():
+        click.echo("\n❌ Missing configuration")
         sys.exit(1)
     
     click.echo(f"\n✓ Detected: {config.base_url}")
