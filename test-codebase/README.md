@@ -86,6 +86,7 @@ npx ai-patch doctor
 - `retry_issues.js` - Retry problems
 - `cost_issues.js` - Cost problems
 - `traceability_issues.js` - Traceability problems
+- `all_issues.js` - All problems combined
 
 #### Anthropic Claude
 - `streaming_issues_claude.js` - Claude streaming problems

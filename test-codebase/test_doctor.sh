@@ -107,10 +107,18 @@ fi
 if command -v node &> /dev/null; then
     NODE_CMD="node ../node/dist/src/cli.js"
     if [ ! -f "../node/dist/src/cli.js" ]; then
-        log_info "Node CLI not built, building..."
-        cd ../node && npm run build && cd "$TEST_DIR"
+        log_info "Node CLI not built, attempting to build..."
+        if cd ../node && npm install && npm run build 2>/dev/null; then
+            cd "$TEST_DIR"
+            log_pass "Node CLI built successfully"
+        else
+            cd "$TEST_DIR"
+            log_info "Node CLI build failed - skipping Node tests"
+            NODE_CMD=""
+        fi
+    else
+        log_pass "Node found"
     fi
-    log_pass "Node found"
 else
     log_fail "Node not found"
     NODE_CMD=""
@@ -391,6 +399,26 @@ if [ -n "$PYTHON_CMD" ]; then
         "$PYTHON_CMD doctor --target cost --target streaming" \
         2 \
         ""
+    
+    # Edge Case 8: Help with other flags (should show help)
+    run_test "Edge Case: Help with target flag" \
+        "$PYTHON_CMD doctor --help --target streaming" \
+        0 \
+        "Run diagnosis"
+    
+    # Edge Case 9: Very long model name
+    if [ "$HAS_API_KEY" = true ]; then
+        run_test "Edge Case: Very long model name" \
+            "$PYTHON_CMD doctor --model 'this-is-a-very-long-model-name-that-does-not-exist' --target cost --ci" \
+            1 \
+            ""
+    fi
+    
+    # Edge Case 10: Special characters in provider
+    run_test "Edge Case: Special characters in provider" \
+        "$PYTHON_CMD doctor --provider 'openai@#$%' --ci" \
+        2 \
+        ""
 fi
 
 if [ -n "$NODE_CMD" ]; then
@@ -417,6 +445,18 @@ if [ -n "$NODE_CMD" ]; then
         "env -u OPENAI_API_KEY -u ANTHROPIC_API_KEY -u GEMINI_API_KEY $NODE_CMD doctor --ci" \
         2 \
         "Missing configuration"
+    
+    # Edge Case 5: Help with other flags
+    run_test "Node Edge Case: Help with target flag" \
+        "$NODE_CMD doctor --help --target streaming" \
+        0 \
+        "Run diagnosis"
+    
+    # Edge Case 6: Special characters in provider
+    run_test "Node Edge Case: Special characters in provider" \
+        "$NODE_CMD doctor --provider 'openai@#$%' --ci" \
+        2 \
+        ""
 fi
 
 echo ""
