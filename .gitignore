@@ -81,6 +81,19 @@ out/
 .vercel
 .turbo
 
+# TypeScript build outputs
+*.d.ts
+*.d.ts.map
+*.js.map
+node/dist/
+node/checks/*.js
+node/checks/*.d.ts
+node/checks/*.map
+node/*.js
+node/*.d.ts
+node/*.map
+!node/src/*.js
+
 # Keep package-lock.json in frontend directory
 !frontend/package-lock.json
 /.hf_cache

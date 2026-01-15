@@ -10,12 +10,12 @@ import * as path from 'path';
 import * as readline from 'readline';
 
 // Import from shared code (relative path to ai-patch-shared)
-import { Config } from '../../../ai-patch-shared/node/config';
-import { ReportGenerator } from '../../../ai-patch-shared/node/report';
-import { checkStreaming } from '../../../ai-patch-shared/node/checks/streaming';
-import { checkRetries } from '../../../ai-patch-shared/node/checks/retries';
-import { checkCost } from '../../../ai-patch-shared/node/checks/cost';
-import { checkTrace } from '../../../ai-patch-shared/node/checks/trace';
+import { Config, loadSavedConfig, saveConfig } from '../config';
+import { ReportGenerator } from '../report';
+import { checkStreaming } from '../checks/streaming';
+import { checkRetries } from '../checks/retries';
+import { checkCost } from '../checks/cost';
+import { checkTrace } from '../checks/trace';
 
 const program = new Command();
 
@@ -31,6 +31,61 @@ interface CheckResult {
 
 interface Checks {
   [key: string]: CheckResult;
+}
+
+/**
+ * Prompt for hidden input (like password)
+ */
+function promptHidden(query: string): Promise<string> {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    // Hide input
+    const stdin = process.stdin;
+    if ((stdin as any).isTTY) {
+      (stdin as any).setRawMode(true);
+    }
+
+    let input = '';
+    
+    process.stdout.write(query);
+    
+    stdin.on('data', (char) => {
+      const c = char.toString();
+      
+      if (c === '\n' || c === '\r' || c === '\u0004') {
+        // Enter or Ctrl+D
+        if ((stdin as any).isTTY) {
+          (stdin as any).setRawMode(false);
+        }
+        stdin.pause();
+        process.stdout.write('\n');
+        rl.close();
+        resolve(input);
+      } else if (c === '\u0003') {
+        // Ctrl+C
+        if ((stdin as any).isTTY) {
+          (stdin as any).setRawMode(false);
+        }
+        stdin.pause();
+        process.stdout.write('\n');
+        rl.close();
+        process.exit(1);
+      } else if (c === '\u007f' || c === '\b') {
+        // Backspace
+        if (input.length > 0) {
+          input = input.slice(0, -1);
+        }
+      } else {
+        input += c;
+      }
+    });
+    
+    stdin.resume();
+  });
 }
 
 program
@@ -95,12 +150,75 @@ program
 
     rl.close();
 
-    // Auto-detect config
+    // Load saved config first
+    let savedConfig = loadSavedConfig();
+    
+    // Auto-detect config from env vars
     const config = Config.autoDetect(provider);
+    
+    // If saved config exists, use it to fill in missing values
+    if (savedConfig) {
+      if (savedConfig.apiKey && !config.apiKey) {
+        config.apiKey = savedConfig.apiKey;
+      }
+      if (savedConfig.baseUrl && !config.baseUrl) {
+        config.baseUrl = savedConfig.baseUrl;
+      }
+    }
 
+    // If still missing config, prompt for it
+    let promptedApiKey: string | undefined;
+    let promptedBaseUrl: string | undefined;
+    
     if (!config.isValid()) {
-      console.log('\n❌ Missing configuration:');
-      console.log(`   Set ${config.getMissingVars()}`);
+      const rl2 = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+
+      const question2 = (query: string): Promise<string> => {
+        return new Promise((resolve) => rl2.question(query, resolve));
+      };
+
+      console.log('\n⚙️  Configuration needed\n');
+      
+      // Prompt for API key if missing
+      if (!config.apiKey) {
+        promptedApiKey = await promptHidden('API key not found. Paste your API key (input will be hidden): ');
+        config.apiKey = promptedApiKey;
+      }
+      
+      // Prompt for base URL if missing
+      if (!config.baseUrl) {
+        const defaultUrl = provider === 'anthropic' 
+          ? 'https://api.anthropic.com'
+          : provider === 'gemini'
+          ? 'https://generativelanguage.googleapis.com'
+          : 'https://api.openai.com';
+        
+        const urlAnswer = await question2(`API URL? (Enter for ${defaultUrl}): `);
+        promptedBaseUrl = urlAnswer.trim() || defaultUrl;
+        config.baseUrl = promptedBaseUrl;
+      }
+      
+      // Ask if user wants to save config
+      if (promptedApiKey || promptedBaseUrl) {
+        const saveAnswer = await question2('Save for next time? (y/N): ');
+        if (saveAnswer.trim().toLowerCase() === 'y') {
+          saveConfig({
+            apiKey: promptedApiKey || config.apiKey,
+            baseUrl: promptedBaseUrl || config.baseUrl
+          });
+          console.log('✓ Configuration saved to ~/.ai-patch/config.json\n');
+        }
+      }
+      
+      rl2.close();
+    }
+
+    // Final validation - if still invalid after prompts, user likely cancelled
+    if (!config.isValid()) {
+      console.log('\n❌ Missing configuration');
       process.exit(1);
     }
 
@@ -317,6 +435,13 @@ function displaySummary(reportData: any, reportDir: string): void {
   console.log(`\n${statusEmoji[status] || '•'} ${status.toUpperCase()}`);
   console.log(`\n📊 Report saved: ${path.relative(process.cwd(), reportDir)}`);
   console.log(`\n→ Next: ${summary.next_step}\n`);
+  
+  // Add Badgr nudge if status is not success
+  if (status !== 'success') {
+    console.log('💡 This kind of issue is hard to debug after the fact.');
+    console.log('AI Badgr keeps a per-request receipt (latency, retries, cost) for real traffic.\n');
+  }
+  
   console.log('Generated by AI Patch — re-run: npx ai-patch');
 }
 
