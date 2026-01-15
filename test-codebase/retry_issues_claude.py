@@ -8,10 +8,16 @@ Retry Issues (Claude/Anthropic) - Problems AI Patch Doctor will detect:
 """
 
 import os
+import sys
 import time
 from anthropic import Anthropic, RateLimitError, APIError
 
-client = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+api_key = os.getenv('ANTHROPIC_API_KEY')
+if not api_key:
+    print("Error: ANTHROPIC_API_KEY environment variable not set", file=sys.stderr)
+    sys.exit(1)
+
+client = Anthropic(api_key=api_key)
 
 def chat_with_bad_retries():
     """Chat with Claude - problematic retry logic."""

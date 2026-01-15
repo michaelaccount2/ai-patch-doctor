@@ -7,10 +7,16 @@ Streaming Issues (Claude/Anthropic) - Problems AI Patch Doctor will detect:
 """
 
 import os
+import sys
 from anthropic import Anthropic
 
 # Initialize client
-client = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+api_key = os.getenv('ANTHROPIC_API_KEY')
+if not api_key:
+    print("Error: ANTHROPIC_API_KEY environment variable not set", file=sys.stderr)
+    sys.exit(1)
+
+client = Anthropic(api_key=api_key)
 
 def streaming_chat_with_issues():
     """Streaming chat with Claude - intentional issues."""
