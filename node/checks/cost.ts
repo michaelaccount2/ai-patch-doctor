@@ -45,7 +45,9 @@ export async function checkCost(config: Config): Promise<CheckResult> {
   metrics.input_price_per_1m = inputPrice;
   metrics.output_price_per_1m = outputPrice;
 
-  // Only report pricing
+  // Only report pricing (informational)
+  // Status is 'pass' because we're not detecting any issues,
+  // just providing pricing information from the model lookup table
   findings.push({
     severity: 'info',
     message: `Model pricing: $${inputPrice}/1M input tokens, $${outputPrice}/1M output tokens`,

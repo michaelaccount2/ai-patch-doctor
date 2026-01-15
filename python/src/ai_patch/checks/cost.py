@@ -34,7 +34,9 @@ def check(config: Config) -> Dict[str, Any]:
     metrics['input_price_per_1m'] = input_price
     metrics['output_price_per_1m'] = output_price
     
-    # Only report pricing
+    # Only report pricing (informational)
+    # Status is 'pass' because we're not detecting any issues,
+    # just providing pricing information from the model lookup table
     findings.append({
         'severity': 'info',
         'message': f'Model pricing: ${input_price}/1M input tokens, ${output_price}/1M output tokens'
