@@ -57,13 +57,13 @@ export async function checkTrace(config: Config): Promise<CheckResult> {
     if (providerRequestId) {
       findings.push({
         severity: 'info',
-        message: `Provider request ID found: ${providerRequestId}`,
+        message: `Provider request ID: ${providerRequestId}`,
       });
       metrics.provider_request_id = providerRequestId;
     } else {
       findings.push({
         severity: 'warning',
-        message: 'No provider request ID found in response headers',
+        message: 'Provider request ID not found in response headers',
       });
     }
 
@@ -75,27 +75,11 @@ export async function checkTrace(config: Config): Promise<CheckResult> {
 
     findings.push({
       severity: 'info',
-      message: `Generated request hash: ${requestHash} (for duplicate detection)`,
-    });
-
-    // Recommendations
-    findings.push({
-      severity: 'info',
-      message: 'Always include X-Request-ID header for request correlation',
-    });
-
-    findings.push({
-      severity: 'info',
-      message: 'Log request hashes to detect duplicate API calls',
-    });
-
-    findings.push({
-      severity: 'info',
-      message: 'Capture provider request IDs from response headers for support tickets',
+      message: `Generated request hash: ${requestHash}`,
     });
 
     return {
-      status: 'pass',
+      status: providerRequestId ? 'pass' : 'warn',
       findings,
       metrics,
     };

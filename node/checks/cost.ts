@@ -41,34 +41,14 @@ export async function checkCost(config: Config): Promise<CheckResult> {
   metrics.input_price_per_1m = inputPrice;
   metrics.output_price_per_1m = outputPrice;
 
-  // Recommendations
+  // Only report pricing
   findings.push({
     severity: 'info',
-    message: `Model pricing: $${inputPrice}/1M input, $${outputPrice}/1M output tokens`,
-  });
-
-  findings.push({
-    severity: 'info',
-    message: 'Set max_tokens cap to prevent runaway costs (e.g., max_tokens: 2000)',
-  });
-
-  findings.push({
-    severity: 'info',
-    message: 'Monitor for tool/function call loops that can burn tokens quickly',
-  });
-
-  findings.push({
-    severity: 'info',
-    message: 'Consider implementing per-user or per-session token budgets',
-  });
-
-  findings.push({
-    severity: 'warning',
-    message: 'No prompt size validation detected. Large prompts can cause cost spikes.',
+    message: `Model pricing: $${inputPrice}/1M input tokens, $${outputPrice}/1M output tokens`,
   });
 
   return {
-    status: 'warn',
+    status: 'pass',
     findings,
     metrics,
   };

@@ -45,13 +45,13 @@ def check(config: Config) -> Dict[str, Any]:
         if provider_request_id:
             findings.append({
                 'severity': 'info',
-                'message': f'Provider request ID found: {provider_request_id}'
+                'message': f'Provider request ID: {provider_request_id}'
             })
             metrics['provider_request_id'] = provider_request_id
         else:
             findings.append({
                 'severity': 'warning',
-                'message': 'No provider request ID found in response headers'
+                'message': 'Provider request ID not found in response headers'
             })
         
         # Calculate request hash for duplicate detection
@@ -62,26 +62,10 @@ def check(config: Config) -> Dict[str, Any]:
         
         findings.append({
             'severity': 'info',
-            'message': f'Generated request hash: {request_hash} (for duplicate detection)'
+            'message': f'Generated request hash: {request_hash}'
         })
         
-        # Recommendations
-        findings.append({
-            'severity': 'info',
-            'message': 'Always include X-Request-ID header for request correlation'
-        })
-        
-        findings.append({
-            'severity': 'info',
-            'message': 'Log request hashes to detect duplicate API calls'
-        })
-        
-        findings.append({
-            'severity': 'info',
-            'message': 'Capture provider request IDs from response headers for support tickets'
-        })
-        
-        status = 'pass'
+        status = 'pass' if provider_request_id else 'warn'
         
     except Exception as e:
         status = 'fail'

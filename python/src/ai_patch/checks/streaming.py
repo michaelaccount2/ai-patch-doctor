@@ -60,18 +60,18 @@ def check(config: Config) -> Dict[str, Any]:
         if ttfb and ttfb > 5.0:
             findings.append({
                 'severity': 'warning',
-                'message': f'High TTFB: {ttfb:.2f}s (>5s). Check network or proxy settings.'
+                'message': f'TTFB: {ttfb:.1f}s (threshold: 5s)'
             })
         
         if max_chunk_gap > 30.0:
             findings.append({
                 'severity': 'error',
-                'message': f'Large chunk gap: {max_chunk_gap:.2f}s (>30s). Possible SSE stall or proxy idle timeout.'
+                'message': f'Max chunk gap: {max_chunk_gap:.1f}s (>30s threshold)'
             })
         elif max_chunk_gap > 10.0:
             findings.append({
                 'severity': 'warning',
-                'message': f'Chunk gap: {max_chunk_gap:.2f}s (>10s). Monitor for potential stalls.'
+                'message': f'Max chunk gap: {max_chunk_gap:.1f}s (>10s threshold)'
             })
         
         # Determine status

@@ -33,7 +33,7 @@ def check(config: Config) -> Dict[str, Any]:
             retry_after = response.headers['retry-after']
             findings.append({
                 'severity': 'info',
-                'message': f'Retry-After header present: {retry_after}s'
+                'message': f'Retry-After header: {retry_after}s'
             })
             metrics['retry_after_s'] = retry_after
         
@@ -44,26 +44,17 @@ def check(config: Config) -> Dict[str, Any]:
             if int(remaining) < 10:
                 findings.append({
                     'severity': 'warning',
-                    'message': f'Low rate limit remaining: {remaining}'
+                    'message': f'Rate limit remaining: {remaining} requests'
                 })
         
-        # General recommendations
-        findings.append({
-            'severity': 'info',
-            'message': 'Recommended: Use exponential backoff with jitter for retries'
-        })
+        # Check for 429 status
+        if response.status_code == 429:
+            findings.append({
+                'severity': 'warning',
+                'message': 'Rate limiting detected (HTTP 429)'
+            })
         
-        findings.append({
-            'severity': 'info',
-            'message': 'Never retry after stream has started (partial response received)'
-        })
-        
-        findings.append({
-            'severity': 'info',
-            'message': 'Set retry cap (e.g., 3 attempts max) to avoid infinite loops'
-        })
-        
-        status = 'pass'
+        status = 'warn' if any(f['severity'] in ['warning', 'error'] for f in findings) else 'pass'
         
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 429:

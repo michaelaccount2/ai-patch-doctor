@@ -79,19 +79,19 @@ export async function checkStreaming(config: Config): Promise<CheckResult> {
     if (ttfb && ttfb / 1000 > 5.0) {
       findings.push({
         severity: 'warning',
-        message: `High TTFB: ${(ttfb / 1000).toFixed(2)}s (>5s). Check network or proxy settings.`,
+        message: `TTFB: ${(ttfb / 1000).toFixed(1)}s (threshold: 5s)`,
       });
     }
 
     if (maxChunkGap > 30.0) {
       findings.push({
         severity: 'error',
-        message: `Large chunk gap: ${maxChunkGap.toFixed(2)}s (>30s). Possible SSE stall or proxy idle timeout.`,
+        message: `Max chunk gap: ${maxChunkGap.toFixed(1)}s (>30s threshold)`,
       });
     } else if (maxChunkGap > 10.0) {
       findings.push({
         severity: 'warning',
-        message: `Chunk gap: ${maxChunkGap.toFixed(2)}s (>10s). Monitor for potential stalls.`,
+        message: `Max chunk gap: ${maxChunkGap.toFixed(1)}s (>10s threshold)`,
       });
     }
 
