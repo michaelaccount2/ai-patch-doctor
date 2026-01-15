@@ -114,7 +114,7 @@ if command -v node &> /dev/null; then
         log_info "Node CLI not built, attempting to build..."
         BUILD_OUTPUT=$(cd ../node && npm install && npm run build 2>&1)
         BUILD_STATUS=$?
-        cd "$TEST_DIR"
+        cd "$TEST_DIR" || exit 1
         
         if [ $BUILD_STATUS -eq 0 ]; then
             log_pass "Node CLI built successfully"
