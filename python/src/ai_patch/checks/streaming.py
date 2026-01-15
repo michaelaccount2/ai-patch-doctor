@@ -11,6 +11,8 @@ def check(config: Config) -> Dict[str, Any]:
     
     findings = []
     metrics = {}
+    not_detected = []
+    not_observable = []
     
     try:
         # Test streaming endpoint
@@ -82,6 +84,10 @@ def check(config: Config) -> Dict[str, Any]:
         else:
             status = 'warn'
         
+        # Add "Not observable" only if there are warnings/errors
+        if status in ['warn', 'fail']:
+            not_observable.append('Whether client retries after partial stream')
+        
     except httpx.TimeoutException as e:
         status = 'fail'
         findings.append({
@@ -104,5 +110,7 @@ def check(config: Config) -> Dict[str, Any]:
     return {
         'status': status,
         'findings': findings,
-        'metrics': metrics
+        'metrics': metrics,
+        'not_detected': not_detected,
+        'not_observable': not_observable
     }

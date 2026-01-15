@@ -13,11 +13,15 @@ interface CheckResult {
     details?: any;
   }>;
   metrics?: Record<string, any>;
+  not_detected?: string[];
+  not_observable?: string[];
 }
 
 export async function checkStreaming(config: Config): Promise<CheckResult> {
   const findings: any[] = [];
   const metrics: Record<string, any> = {};
+  const notDetected: string[] = [];
+  const notObservable: string[] = [];
 
   try {
     const url = `${config.baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
@@ -103,7 +107,12 @@ export async function checkStreaming(config: Config): Promise<CheckResult> {
       status = 'warn';
     }
 
-    return { status, findings, metrics };
+    // Add "Not observable" only if there are warnings/errors
+    if (status === 'warn' || status === 'fail') {
+      notObservable.push('Whether client retries after partial stream');
+    }
+
+    return { status, findings, metrics, not_detected: notDetected, not_observable: notObservable };
   } catch (error: any) {
     return {
       status: 'fail',
@@ -114,6 +123,8 @@ export async function checkStreaming(config: Config): Promise<CheckResult> {
         },
       ],
       metrics,
+      not_detected: notDetected,
+      not_observable: notObservable,
     };
   }
 }

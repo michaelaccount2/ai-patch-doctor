@@ -12,6 +12,8 @@ def check(config: Config) -> Dict[str, Any]:
     
     findings = []
     metrics = {}
+    not_detected = []
+    not_observable = []
     
     try:
         url = f"{config.base_url.rstrip('/')}/v1/chat/completions"
@@ -53,6 +55,7 @@ def check(config: Config) -> Dict[str, Any]:
                 'severity': 'warning',
                 'message': 'Provider request ID not found in response headers'
             })
+            not_detected.append('Provider request ID (not found in response headers)')
         
         # Calculate request hash for duplicate detection
         payload_str = str(sorted(payload.items()))
@@ -64,6 +67,10 @@ def check(config: Config) -> Dict[str, Any]:
             'severity': 'info',
             'message': f'Generated request hash: {request_hash}'
         })
+        
+        # Add "Not observable" only if there are warnings
+        if not provider_request_id:
+            not_observable.append('Duplicate requests')
         
         status = 'pass' if provider_request_id else 'warn'
         
@@ -77,5 +84,7 @@ def check(config: Config) -> Dict[str, Any]:
     return {
         'status': status,
         'findings': findings,
-        'metrics': metrics
+        'metrics': metrics,
+        'not_detected': not_detected,
+        'not_observable': not_observable
     }

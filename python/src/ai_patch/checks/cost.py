@@ -9,6 +9,8 @@ def check(config: Config) -> Dict[str, Any]:
     
     findings = []
     metrics = {}
+    not_detected = []
+    not_observable = []
     
     # Cost estimation (simplified - in production, would query actual pricing)
     # These are approximate OpenAI prices per 1M tokens
@@ -43,5 +45,7 @@ def check(config: Config) -> Dict[str, Any]:
     return {
         'status': status,
         'findings': findings,
-        'metrics': metrics
+        'metrics': metrics,
+        'not_detected': not_detected,
+        'not_observable': not_observable
     }

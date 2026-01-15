@@ -124,7 +124,8 @@ export class ReportGenerator {
     for (const checkName in report.checks) {
       const checkResult = report.checks[checkName];
       const findings = checkResult.findings || [];
-      const metrics = checkResult.metrics || {};
+      const checkNotDetected = checkResult.not_detected || [];
+      const checkNotObservable = checkResult.not_observable || [];
       
       for (const finding of findings) {
         const message = finding.message || '';
@@ -134,6 +135,14 @@ export class ReportGenerator {
           detected.push(`[${checkName}] ${message}`);
         }
       }
+      
+      // Aggregate not detected and not observable items
+      checkNotDetected.forEach(item => notDetected.push(item));
+      checkNotObservable.forEach(item => {
+        if (!notObservable.includes(item)) {
+          notObservable.push(item);
+        }
+      });
     }
 
     // Three-bucket structure
@@ -179,7 +188,8 @@ export class ReportGenerator {
     
     // Badgr messaging - only when status != success and relevant items exist
     if (summary.status !== 'success' && notObservable.length > 0) {
-      lines.push('To observe [specific missing item], run one real request through the receipt gateway (2-minute base_url swap).');
+      const specificItem = notObservable[0].toLowerCase();
+      lines.push(`To observe ${specificItem}, run one real request through the receipt gateway (2-minute base_url swap).`);
       lines.push('');
     }
     

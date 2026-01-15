@@ -14,11 +14,15 @@ interface CheckResult {
     details?: any;
   }>;
   metrics?: Record<string, any>;
+  not_detected?: string[];
+  not_observable?: string[];
 }
 
 export async function checkTrace(config: Config): Promise<CheckResult> {
   const findings: any[] = [];
   const metrics: Record<string, any> = {};
+  const notDetected: string[] = [];
+  const notObservable: string[] = [];
 
   try {
     const url = `${config.baseUrl.replace(/\/$/, '')}/v1/chat/completions`;
@@ -65,6 +69,7 @@ export async function checkTrace(config: Config): Promise<CheckResult> {
         severity: 'warning',
         message: 'Provider request ID not found in response headers',
       });
+      notDetected.push('Provider request ID (not found in response headers)');
     }
 
     // Calculate request hash for duplicate detection
@@ -78,10 +83,17 @@ export async function checkTrace(config: Config): Promise<CheckResult> {
       message: `Generated request hash: ${requestHash}`,
     });
 
+    // Add "Not observable" only if there are warnings
+    if (!providerRequestId) {
+      notObservable.push('Duplicate requests');
+    }
+
     return {
       status: providerRequestId ? 'pass' : 'warn',
       findings,
       metrics,
+      not_detected: notDetected,
+      not_observable: notObservable,
     };
   } catch (error: any) {
     return {
@@ -93,6 +105,8 @@ export async function checkTrace(config: Config): Promise<CheckResult> {
         },
       ],
       metrics,
+      not_detected: notDetected,
+      not_observable: notObservable,
     };
   }
 }

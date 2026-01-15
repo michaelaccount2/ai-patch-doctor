@@ -10,6 +10,8 @@ def check(config: Config) -> Dict[str, Any]:
     
     findings = []
     metrics = {}
+    not_detected = []
+    not_observable = []
     
     try:
         # Test for 429 handling
@@ -54,6 +56,16 @@ def check(config: Config) -> Dict[str, Any]:
                 'message': 'Rate limiting detected (HTTP 429)'
             })
         
+        # If no rate limiting detected, add to not_detected
+        if response.status_code != 429 and 'retry-after' not in response.headers:
+            not_detected.append('Rate limiting (no 429s in 1 probe)')
+        
+        # Add "Not observable" only if there are warnings/errors
+        has_warnings = any(f['severity'] in ['warning', 'error'] for f in findings)
+        if has_warnings:
+            not_observable.append('Retry policy')
+            not_observable.append('Retry after stream start')
+        
         status = 'warn' if any(f['severity'] in ['warning', 'error'] for f in findings) else 'pass'
         
     except httpx.HTTPStatusError as e:
@@ -64,6 +76,7 @@ def check(config: Config) -> Dict[str, Any]:
                 'severity': 'warning',
                 'message': f'Rate limited (429). Retry-After: {retry_after}'
             })
+            not_observable = ['Retry policy', 'Retry after stream start']
         else:
             status = 'fail'
             findings.append({
@@ -80,5 +93,7 @@ def check(config: Config) -> Dict[str, Any]:
     return {
         'status': status,
         'findings': findings,
-        'metrics': metrics
+        'metrics': metrics,
+        'not_detected': not_detected,
+        'not_observable': not_observable
     }
