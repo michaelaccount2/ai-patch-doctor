@@ -34,11 +34,14 @@ interface Checks {
 }
 
 /**
- * Determine if prompting is allowed.
+ * Determine if essential prompting is allowed (e.g., API key).
  * 
- * Returns true only when: interactiveFlag AND isTTY AND NOT ciFlag
+ * Returns true when: isTTY AND NOT ciFlag (frictionless mode)
  * If interactiveFlag is set but not TTY: print error and exit 2
  * In --ci: never prompt
+ * 
+ * Note: This is for ESSENTIAL prompts only (API key).
+ * For preference menus (target, provider), use interactiveFlag directly.
  */
 function shouldPrompt(interactiveFlag: boolean, ciFlag: boolean): boolean {
   const isTTY = process.stdin.isTTY && process.stdout.isTTY;
@@ -58,8 +61,8 @@ function shouldPrompt(interactiveFlag: boolean, ciFlag: boolean): boolean {
     return true;
   }
   
-  // Default: no prompting
-  return false;
+  // Default: allow essential prompts in TTY (frictionless mode)
+  return isTTY;
 }
 
 /**
@@ -145,16 +148,16 @@ program
       process.exit(2);
     }
     
-    // Welcome message (different for interactive vs non-interactive)
-    if (canPrompt) {
+    // Welcome message (only in explicit interactive mode)
+    if (options.interactive) {
       console.log('🔍 AI Patch Doctor - Interactive Mode\n');
     }
     
     let target = options.target;
     let provider = options.provider;
     
-    // Interactive questions for target
-    if (!target && canPrompt) {
+    // Interactive questions for target (only with -i flag)
+    if (!target && options.interactive) {
       const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
@@ -205,8 +208,8 @@ program
       }
     }
     
-    // Interactive provider selection (only if prompting allowed and provider not specified)
-    if (!provider && canPrompt) {
+    // Interactive provider selection (only with -i flag)
+    if (!provider && options.interactive) {
       const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
@@ -281,23 +284,21 @@ program
 
       console.log('\n⚙️  Configuration needed\n');
       
-      // Prompt for API key if missing
+      // Prompt for API key if missing (essential prompt)
       if (!config.apiKey) {
         promptedApiKey = await promptHidden('API key not found. Paste your API key (input will be hidden): ');
         config.apiKey = promptedApiKey;
       }
       
-      // Prompt for base URL if missing
+      // Auto-fill base URL if missing (no prompt - use provider defaults)
       if (!config.baseUrl) {
-        const defaultUrl = provider === 'anthropic' 
-          ? 'https://api.anthropic.com'
-          : provider === 'gemini'
-          ? 'https://generativelanguage.googleapis.com'
-          : 'https://api.openai.com';
-        
-        const urlAnswer = await question2(`API URL? (Enter for ${defaultUrl}): `);
-        promptedBaseUrl = urlAnswer.trim() || defaultUrl;
-        config.baseUrl = promptedBaseUrl;
+        if (provider === 'anthropic') {
+          config.baseUrl = 'https://api.anthropic.com';
+        } else if (provider === 'gemini') {
+          config.baseUrl = 'https://generativelanguage.googleapis.com';
+        } else {
+          config.baseUrl = 'https://api.openai.com';
+        }
       }
       
       rl2.close();

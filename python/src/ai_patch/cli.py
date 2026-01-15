@@ -19,18 +19,21 @@ from ai_patch.config import Config, load_saved_config, save_config, auto_detect_
 
 
 def should_prompt(interactive_flag: bool, ci_flag: bool) -> bool:
-    """Determine if prompting is allowed.
+    """Determine if essential prompting is allowed (e.g., API key).
     
-    Returns True only when: interactive_flag AND is_tty AND NOT ci_flag
+    Returns True when: is_tty AND NOT ci_flag (frictionless mode)
     If interactive_flag is set but not TTY: print error and exit 2
     In --ci: never prompt
+    
+    Note: This is for ESSENTIAL prompts only (API key).
+    For preference menus (target, provider), use interactive_flag directly.
     
     Args:
         interactive_flag: Whether -i/--interactive was passed
         ci_flag: Whether --ci was passed
         
     Returns:
-        True if prompting is allowed, False otherwise
+        True if essential prompting is allowed, False otherwise
     """
     is_tty = sys.stdin.isatty() and sys.stdout.isatty()
     
@@ -46,8 +49,8 @@ def should_prompt(interactive_flag: bool, ci_flag: bool) -> bool:
             sys.exit(2)
         return True
     
-    # Default: no prompting
-    return False
+    # Default: allow essential prompts in TTY (frictionless mode)
+    return is_tty
 
 
 @click.group(invoke_without_command=True)
@@ -99,12 +102,12 @@ def doctor(
         click.echo("   Example: ai-patch doctor --save-key --force")
         sys.exit(2)
     
-    # Welcome message (different for interactive vs non-interactive)
-    if can_prompt:
+    # Welcome message (only in explicit interactive mode)
+    if interactive_flag:
         click.echo("🔍 AI Patch Doctor - Interactive Mode\n")
     
-    # Interactive questions for target
-    if not target and can_prompt:
+    # Interactive questions for target (only with -i flag)
+    if not target and interactive_flag:
         click.echo("What's failing?")
         click.echo("  1. streaming / SSE stalls / partial output")
         click.echo("  2. retries / 429 / rate-limit chaos")
@@ -139,8 +142,8 @@ def doctor(
                 click.echo(f"   Set {selected_key_name} or run with -i for interactive mode")
             sys.exit(2)
     
-    # Interactive provider selection (only if prompting allowed and provider not specified)
-    if not provider and can_prompt:
+    # Interactive provider selection (only with -i flag)
+    if not provider and interactive_flag:
         click.echo("\nWhat do you use?")
         click.echo("  1. openai-compatible (default)")
         click.echo("  2. anthropic")
@@ -188,21 +191,19 @@ def doctor(
         
         click.echo("\n⚙️  Configuration needed\n")
         
-        # Prompt for API key if missing
+        # Prompt for API key if missing (essential prompt)
         if not config.api_key:
             prompted_api_key = getpass.getpass('API key not found. Paste your API key (input will be hidden): ')
             config.api_key = prompted_api_key
         
-        # Prompt for base URL if missing
+        # Auto-fill base URL if missing (no prompt - use provider defaults)
         if not config.base_url:
-            default_url = 'https://api.anthropic.com' if provider == 'anthropic' else \
-                          'https://generativelanguage.googleapis.com' if provider == 'gemini' else \
-                          'https://api.openai.com'
-            
-            prompted_base_url = click.prompt(f'API URL? (Enter for {default_url})', 
-                                            default=default_url, 
-                                            show_default=False)
-            config.base_url = prompted_base_url
+            if provider == 'anthropic':
+                config.base_url = 'https://api.anthropic.com'
+            elif provider == 'gemini':
+                config.base_url = 'https://generativelanguage.googleapis.com'
+            else:
+                config.base_url = 'https://api.openai.com'
     
     # Final validation - if still invalid, exit
     if not config.is_valid():
