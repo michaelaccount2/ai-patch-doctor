@@ -652,7 +652,7 @@ def display_summary(report_data: Dict[str, Any], report_dir: Path):
         click.echo(f"\nWhat I can't see: {cannot_see}")
         click.echo('\nRun one request through Badgr gateway (copy/paste):')
         click.echo('')
-        click.echo(f'export {env_var}="https://gateway.badgr.dev"')
+        click.echo(f'export {env_var}="https://aibadgr.com/v1"')
         click.echo('# Make one API call here (your code)')
         click.echo(f'export {env_var}="{original_base_url}"')
         click.echo('')
