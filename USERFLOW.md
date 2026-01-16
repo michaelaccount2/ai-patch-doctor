@@ -79,7 +79,7 @@ Call `config.isValid()` to check if apiKey and baseUrl are present.
 If invalid and non-interactive, call `config.getMissingVars()`, display error, and exit with code 2.
 
 ### Step 25: Prompt for Missing API Key
-If missing API key in interactive mode, use `promptHidden()` to securely read API key without displaying it.
+If missing API key and TTY available (frictionless or interactive mode), use `promptHidden()` to securely read API key without displaying it.
 
 ### Step 26: Handle Hidden Input
 Raw mode enabled on stdin, characters read one by one, backspace handled, no echo to terminal.
@@ -203,7 +203,7 @@ Call `config.is_valid()` method to verify required fields are present.
 If invalid and non-interactive, call `config.get_missing_vars()`, display error, and `sys.exit(2)`.
 
 ### Step 25: Prompt for Missing API Key
-If missing API key in interactive mode, use `getpass.getpass()` for secure hidden input.
+If missing API key and TTY available (frictionless or interactive mode), use `getpass.getpass()` for secure hidden input.
 
 ### Step 26: Handle Hidden Input
 Getpass module reads password without echoing characters to terminal.
@@ -261,6 +261,7 @@ Both implementations support additional commands beyond the main `doctor` comman
 - Shows suggested fixes
 - Applies changes only with `--safe` flag
 - Default dry-run mode
+- Experimental - not fully implemented in MVP
 
 ### Test Command
 - Requires `--target` parameter
@@ -269,10 +270,10 @@ Both implementations support additional commands beyond the main `doctor` comman
 - Displays findings on failure
 
 ### Diagnose Command
-- Deep diagnosis mode
-- Optional `--with-badgr` flag
-- Falls back to standard checks
-- Placeholder for Badgr proxy integration
+- Deep diagnosis mode (experimental)
+- `--with-badgr` flag exits with code 2 and message "Not available in MVP"
+- Without flag: runs standard checks on all targets
+- Useful for comprehensive analysis after initial doctor run
 
 ### Share Command
 - Creates redacted share bundle
@@ -282,8 +283,8 @@ Both implementations support additional commands beyond the main `doctor` comman
 
 ### Revert Command
 - Undoes applied changes
-- Placeholder for revert logic
-- Safe rollback mechanism
+- Experimental - not fully implemented in MVP
+- Safe rollback mechanism for future use
 
 ---
 

@@ -66,57 +66,82 @@ function shouldPrompt(interactiveFlag: boolean, ciFlag: boolean): boolean {
 }
 
 /**
- * Prompt for hidden input (like password)
+ * Prompt for hidden input (like password).
+ * 
+ * SECURITY: No echo, properly restore raw mode, clean up listeners.
+ * - Characters are not displayed during input
+ * - Raw mode is enabled/disabled correctly
+ * - stdin listeners are cleaned up after completion
+ * - Only printable characters (ASCII >= 32) are accepted
  */
 function promptHidden(query: string): Promise<string> {
-  return new Promise((resolve) => {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-
-    // Hide input
+  return new Promise((resolve, reject) => {
     const stdin = process.stdin;
-    if ((stdin as any).isTTY) {
-      (stdin as any).setRawMode(true);
+    const stdout = process.stdout;
+    const MIN_PRINTABLE_ASCII = 32; // Space character - minimum printable ASCII
+    
+    // Check if TTY is available
+    if (!(stdin as any).isTTY) {
+      reject(new Error('Cannot prompt for hidden input in non-TTY environment'));
+      return;
     }
 
     let input = '';
+    let rawModeEnabled = false;
     
-    process.stdout.write(query);
-    
-    stdin.on('data', (char) => {
+    // Data handler for stdin
+    const onData = (char: Buffer) => {
       const c = char.toString();
       
       if (c === '\n' || c === '\r' || c === '\u0004') {
-        // Enter or Ctrl+D
-        if ((stdin as any).isTTY) {
-          (stdin as any).setRawMode(false);
-        }
-        stdin.pause();
-        process.stdout.write('\n');
-        rl.close();
+        // Enter or Ctrl+D - finish input
+        cleanup();
+        stdout.write('\n');
         resolve(input);
       } else if (c === '\u0003') {
-        // Ctrl+C
-        if ((stdin as any).isTTY) {
-          (stdin as any).setRawMode(false);
-        }
-        stdin.pause();
-        process.stdout.write('\n');
-        rl.close();
+        // Ctrl+C - abort
+        cleanup();
+        stdout.write('\n');
         process.exit(1);
       } else if (c === '\u007f' || c === '\b') {
-        // Backspace
+        // Backspace - remove last character
         if (input.length > 0) {
           input = input.slice(0, -1);
         }
-      } else {
+        // No visual feedback for backspace in hidden mode
+      } else if (c.charCodeAt(0) >= MIN_PRINTABLE_ASCII) {
+        // Only accept printable characters (ASCII >= 32)
+        // NO ECHO - just store the character
         input += c;
       }
-    });
+      // For all other control characters, do nothing (no echo)
+    };
     
-    stdin.resume();
+    // Cleanup function to restore terminal state
+    const cleanup = () => {
+      if (rawModeEnabled) {
+        try {
+          (stdin as any).setRawMode(false);
+          rawModeEnabled = false;
+        } catch (e) {
+          // Ignore errors on cleanup
+        }
+      }
+      stdin.removeListener('data', onData);
+      stdin.pause();
+    };
+    
+    // Set up raw mode and listener
+    try {
+      (stdin as any).setRawMode(true);
+      rawModeEnabled = true;
+      stdout.write(query);
+      stdin.on('data', onData);
+      stdin.resume();
+    } catch (error) {
+      cleanup();
+      reject(error);
+    }
   });
 }
 
@@ -361,7 +386,7 @@ program
 
 program
   .command('apply')
-  .description('Apply suggested fixes (use --safe to actually apply)')
+  .description('Apply suggested fixes (experimental - not fully implemented in MVP)')
   .option('--safe', 'Apply in safe mode (dry-run by default)')
   .action((options) => {
     if (!options.safe) {
@@ -418,16 +443,16 @@ program
 
 program
   .command('diagnose')
-  .description('Deep diagnosis (optional Badgr proxy for enhanced checks)')
-  .option('--with-badgr', 'Enable deep diagnosis through Badgr proxy')
+  .description('Deep diagnosis mode (experimental)')
+  .option('--with-badgr', 'Enable deep diagnosis through Badgr proxy (not available in MVP)')
   .action(async (options) => {
-    console.log('🔬 AI Patch Deep Diagnosis\n');
-
     if (options.withBadgr) {
-      console.log('Starting local Badgr-compatible proxy...');
-      console.log('⚠️  Badgr proxy not yet implemented');
-      console.log('   Falling back to standard checks');
+      console.log('❌ --with-badgr is not available in MVP');
+      console.log('   This feature requires the Badgr receipt gateway');
+      process.exit(2);
     }
+
+    console.log('🔬 AI Patch Deep Diagnosis\n');
 
     const config = Config.autoDetect('openai-compatible');
     await runChecks('all', config, 'openai-compatible');
@@ -450,14 +475,12 @@ program
 
     const bundlePath = path.join(path.dirname(reportPath), 'share-bundle.zip');
 
-    console.log(`✓ Created: ${bundlePath}\n`);
-    console.log('📧 Share this bundle with AI Badgr support for confirmation / pilot:');
-    console.log('   support@aibadgr.com');
+    console.log(`✓ Created: ${bundlePath}`);
   });
 
 program
   .command('revert')
-  .description('Undo any applied local changes')
+  .description('Undo applied changes (experimental - not fully implemented in MVP)')
   .action(() => {
     console.log('↩️  Reverting applied changes...\n');
     console.log('✓ Reverted all applied changes');
@@ -498,14 +521,17 @@ function saveReport(reportData: any): string {
 
   fs.mkdirSync(reportDir, { recursive: true });
 
+  // Sanitize report data before saving (remove any potential secrets)
+  const sanitizedData = sanitizeReportData(reportData);
+
   // Save JSON
   const jsonPath = path.join(reportDir, 'report.json');
-  fs.writeFileSync(jsonPath, JSON.stringify(reportData, null, 2));
+  fs.writeFileSync(jsonPath, JSON.stringify(sanitizedData, null, 2));
 
   // Save Markdown
   const mdPath = path.join(reportDir, 'report.md');
   const reportGen = new ReportGenerator();
-  const mdContent = reportGen.generateMarkdown(reportData);
+  const mdContent = reportGen.generateMarkdown(sanitizedData);
   fs.writeFileSync(mdPath, mdContent);
 
   // Create latest pointer
@@ -528,6 +554,37 @@ function saveReport(reportData: any): string {
   }
 
   return reportDir;
+}
+
+/**
+ * Sanitize report data to remove any potential secrets or API keys.
+ * This is a deep sanitization that recursively checks all fields.
+ */
+function sanitizeReportData(data: any): any {
+  if (typeof data !== 'object' || data === null) {
+    return data;
+  }
+
+  if (Array.isArray(data)) {
+    return data.map(item => sanitizeReportData(item));
+  }
+
+  const sanitized: any = {};
+  const secretFields = ['apiKey', 'api_key', 'apikey', 'key', 'secret', 'token', 'password', 'authorization'];
+  
+  for (const [key, value] of Object.entries(data)) {
+    const lowerKey = key.toLowerCase();
+    
+    // Skip fields that might contain secrets
+    if (secretFields.some(sf => lowerKey.includes(sf))) {
+      continue;
+    }
+    
+    // Recursively sanitize nested objects
+    sanitized[key] = sanitizeReportData(value);
+  }
+  
+  return sanitized;
 }
 
 function formatTimestamp(date: Date): string {
@@ -686,6 +743,8 @@ function displaySummary(reportData: any, reportDir: string): void {
   const summary = reportData.summary;
   const status = summary.status;
   const checks = reportData.checks;
+  const provider = reportData.provider;
+  const baseUrl = reportData.base_url;
 
   // Show file path
   const reportsBase = path.join(process.cwd(), 'ai-patch-reports');
@@ -702,23 +761,55 @@ function displaySummary(reportData: any, reportDir: string): void {
 
   // Badgr messaging - only when status != success
   if (status !== 'success') {
-    // Check if there are any "not observable" items that would benefit from Badgr
-    const hasNotObservable = Object.values(checks).some(
-      (check: any) => check.not_observable && check.not_observable.length > 0
-    );
-    
-    if (hasNotObservable) {
-      // Get the first not observable item for specific messaging
-      let specificItem = 'missing data';
-      for (const checkName in checks) {
-        const notObs = checks[checkName].not_observable || [];
-        if (notObs.length > 0) {
-          specificItem = notObs[0].toLowerCase();
-          break;
+    // Find most severe finding
+    let mostSevereFinding = '';
+    for (const checkName in checks) {
+      const findings = checks[checkName].findings || [];
+      for (const finding of findings) {
+        if (finding.severity === 'error' || finding.severity === 'warning') {
+          mostSevereFinding = `[${checkName}] ${finding.message}`;
+          if (finding.severity === 'error') break;
         }
       }
-      console.log(`\nTo observe ${specificItem}, run one real request through the receipt gateway (2-minute base_url swap).`);
+      if (mostSevereFinding && findings.some((f: any) => f.severity === 'error')) break;
     }
+    
+    // Find what we can't see
+    let cannotSee = '';
+    for (const checkName in checks) {
+      const notObs = checks[checkName].not_observable || [];
+      if (notObs.length > 0) {
+        cannotSee = notObs[0];
+        break;
+      }
+    }
+    if (!cannotSee) {
+      cannotSee = 'retry behavior, partial streams, concurrency';
+    }
+    
+    // Provider-specific env var
+    let envVar = 'OPENAI_BASE_URL';
+    if (provider === 'anthropic') {
+      envVar = 'ANTHROPIC_BASE_URL';
+    } else if (provider === 'gemini') {
+      envVar = 'GEMINI_BASE_URL';
+    }
+    
+    // Detect original base URL (strip /v1 if present for revert)
+    let originalBaseUrl = baseUrl;
+    
+    console.log('\n' + '='.repeat(60));
+    if (mostSevereFinding) {
+      console.log(`\nWhat I found: ${mostSevereFinding}`);
+    }
+    console.log(`\nWhat I can't see: ${cannotSee}`);
+    console.log('\nRun one request through Badgr gateway (copy/paste):');
+    console.log('');
+    console.log(`export ${envVar}="https://gateway.badgr.dev"`);
+    console.log(`# Make one API call here (your code)`);
+    console.log(`export ${envVar}="${originalBaseUrl}"`);
+    console.log('');
+    console.log('='.repeat(60));
   }
 
   console.log('\nGenerated by AI Patch — re-run: npx ai-patch');
