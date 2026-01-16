@@ -8,6 +8,7 @@ import { Command } from 'commander';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as readline from 'readline';
+import { Writable } from 'stream';
 
 // Import from shared code (relative path to ai-patch-shared)
 import { Config, loadSavedConfig, saveConfig, autoDetectProvider } from '../config';
@@ -45,12 +46,12 @@ interface Checks {
  */
 function shouldPrompt(interactiveFlag: boolean, ciFlag: boolean): boolean {
   const isTTY = process.stdin.isTTY && process.stdout.isTTY;
-  
+
   // CI mode never prompts
   if (ciFlag) {
     return false;
   }
-  
+
   // Interactive mode requested
   if (interactiveFlag) {
     if (!isTTY) {
@@ -60,7 +61,7 @@ function shouldPrompt(interactiveFlag: boolean, ciFlag: boolean): boolean {
     }
     return true;
   }
-  
+
   // Default: allow essential prompts in TTY (frictionless mode)
   return isTTY;
 }
@@ -75,73 +76,34 @@ function shouldPrompt(interactiveFlag: boolean, ciFlag: boolean): boolean {
  * - Only printable characters (ASCII >= 32) are accepted
  */
 function promptHidden(query: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const stdin = process.stdin;
-    const stdout = process.stdout;
-    const MIN_PRINTABLE_ASCII = 32; // Space character - minimum printable ASCII
-    
-    // Check if TTY is available
-    if (!(stdin as any).isTTY) {
-      reject(new Error('Cannot prompt for hidden input in non-TTY environment'));
-      return;
-    }
+  return new Promise((resolve) => {
+    // Create a special stream that can be muted
+    const mutableStdout = new Writable({
+      write: function (chunk: any, encoding: any, callback: () => void) {
+        if (!(this as any).muted) {
+          process.stdout.write(chunk, encoding);
+        }
+        callback();
+      }
+    });
 
-    let input = '';
-    let rawModeEnabled = false;
-    
-    // Data handler for stdin
-    const onData = (char: Buffer) => {
-      const c = char.toString();
-      
-      if (c === '\n' || c === '\r' || c === '\u0004') {
-        // Enter or Ctrl+D - finish input
-        cleanup();
-        stdout.write('\n');
-        resolve(input);
-      } else if (c === '\u0003') {
-        // Ctrl+C - abort
-        cleanup();
-        stdout.write('\n');
-        process.exit(1);
-      } else if (c === '\u007f' || c === '\b') {
-        // Backspace - remove last character
-        if (input.length > 0) {
-          input = input.slice(0, -1);
-        }
-        // No visual feedback for backspace in hidden mode
-      } else if (c.charCodeAt(0) >= MIN_PRINTABLE_ASCII) {
-        // Only accept printable characters (ASCII >= 32)
-        // NO ECHO - just store the character
-        input += c;
-      }
-      // For all other control characters, do nothing (no echo)
-    };
-    
-    // Cleanup function to restore terminal state
-    const cleanup = () => {
-      if (rawModeEnabled) {
-        try {
-          (stdin as any).setRawMode(false);
-          rawModeEnabled = false;
-        } catch (e) {
-          // Ignore errors on cleanup
-        }
-      }
-      stdin.removeListener('data', onData);
-      stdin.pause();
-    };
-    
-    // Set up raw mode and listener
-    try {
-      (stdin as any).setRawMode(true);
-      rawModeEnabled = true;
-      stdout.write(query);
-      stdin.on('data', onData);
-      stdin.resume();
-    } catch (error) {
-      cleanup();
-      reject(error);
-    }
+    (mutableStdout as any).muted = false;
+
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: mutableStdout,
+      terminal: true
+    });
+
+    process.stdout.write(query);
+    (mutableStdout as any).muted = true;
+
+    rl.question('', (answer: string) => {
+      (mutableStdout as any).muted = false;
+      process.stdout.write('\n');
+      rl.close();
+      resolve(answer);
+    });
   });
 }
 
@@ -169,7 +131,7 @@ program
       console.log('   --interactive enables prompts, --ci disables prompts');
       process.exit(2);
     }
-    
+
     // Validate target if provided
     const validTargets = ['streaming', 'retries', 'cost', 'trace', 'prod', 'all'];
     if (options.target && !validTargets.includes(options.target)) {
@@ -177,7 +139,7 @@ program
       console.log('   Try --help for more information');
       process.exit(2);
     }
-    
+
     // Validate provider if provided
     const validProviders = ['openai-compatible', 'anthropic', 'gemini'];
     if (options.provider && !validProviders.includes(options.provider)) {
@@ -185,25 +147,25 @@ program
       console.log('   Try --help for more information');
       process.exit(2);
     }
-    
+
     // Check if prompting is allowed
     const canPrompt = shouldPrompt(options.interactive, options.ci);
-    
+
     // Validate --save-key requires --force
     if (options.saveKey && !options.force) {
       console.log('❌ Error: --save-key requires --force flag');
       console.log('   Example: ai-patch doctor --save-key --force');
       process.exit(2);
     }
-    
+
     // Welcome message (only in explicit interactive mode)
     if (options.interactive) {
       console.log('🔍 AI Patch Doctor - Interactive Mode\n');
     }
-    
+
     let target = options.target;
     let provider = options.provider;
-    
+
     // Interactive questions for target (only with -i flag)
     if (!target && options.interactive) {
       const rl = readline.createInterface({
@@ -232,19 +194,19 @@ program
         '': 'all',
       };
       target = targetMap[choice.trim()] || 'all';
-      
+
       rl.close();
     } else if (!target) {
       // Non-interactive default
       target = 'all';
     }
-    
+
     // Auto-detect provider before any prompts
     const [detectedProvider, detectedKeys, selectedKeyName, warning] = autoDetectProvider(
       provider,
       canPrompt
     );
-    
+
     // If warning and cannot continue, exit
     if (warning && !canPrompt) {
       if (warning.toLowerCase().includes('not found') || warning.toLowerCase().includes('invalid')) {
@@ -255,7 +217,7 @@ program
         process.exit(2);
       }
     }
-    
+
     // Interactive provider selection (only with -i flag)
     if (!provider && options.interactive) {
       const rl = readline.createInterface({
@@ -280,24 +242,24 @@ program
         '': 'openai-compatible',
       };
       provider = providerMap[providerChoice.trim()] || detectedProvider;
-      
+
       rl.close();
     } else {
       // Use detected provider
       provider = detectedProvider;
     }
-    
+
     // Load saved config first
     let savedConfig = loadSavedConfig();
-    
+
     // Auto-detect config from env vars
     const config = Config.autoDetect(provider);
-    
+
     // Override with model if provided
     if (options.model) {
       config.model = options.model;
     }
-    
+
     // If saved config exists, use it to fill in missing values
     if (savedConfig) {
       if (savedConfig.apiKey && !config.apiKey) {
@@ -307,11 +269,11 @@ program
         config.baseUrl = savedConfig.baseUrl;
       }
     }
-    
+
     // If still missing config, prompt for it (only if allowed)
     let promptedApiKey: string | undefined;
     let promptedBaseUrl: string | undefined;
-    
+
     if (!config.isValid()) {
       if (!canPrompt) {
         // Cannot prompt - exit with clear message
@@ -320,24 +282,14 @@ program
         console.log(`   Set environment variable(s) or run with -i for interactive mode`);
         process.exit(2);
       }
-      
-      const rl2 = readline.createInterface({
-        input: process.stdin,
-        output: process.stdout,
-      });
-
-      const question2 = (query: string): Promise<string> => {
-        return new Promise((resolve) => rl2.question(query, resolve));
-      };
 
       console.log('\n⚙️  Configuration needed\n');
-      
+
       // Prompt for API key if missing (essential prompt)
       if (!config.apiKey) {
-        promptedApiKey = await promptHidden('API key not found. Paste your API key (input will be hidden): ');
-        config.apiKey = promptedApiKey;
+        config.apiKey = await promptHidden('API key not found. Paste your API key (input will be hidden): ');
       }
-      
+
       // Auto-fill base URL if missing (no prompt - use provider defaults)
       if (!config.baseUrl) {
         if (provider === 'anthropic') {
@@ -348,8 +300,6 @@ program
           config.baseUrl = 'https://api.openai.com';
         }
       }
-      
-      rl2.close();
     }
 
     // Final validation - if still invalid, exit
@@ -357,7 +307,7 @@ program
       console.log('\n❌ Missing configuration');
       process.exit(2);
     }
-    
+
     // Display warning if one was generated
     if (warning && canPrompt) {
       console.log(`\n⚠️  ${warning}`);
@@ -386,7 +336,7 @@ program
 
     // Display summary
     displaySummary(reportData, reportDir);
-    
+
     // Handle config saving (only via flags)
     if (options.save || options.saveKey) {
       const savedFields = saveConfig({
@@ -560,7 +510,7 @@ function saveReport(reportData: any): string {
   // Create latest pointer
   const latestSymlink = path.join(reportsBase, 'latest');
   const latestJson = path.join(reportsBase, 'latest.json');
-  
+
   // Try symlink first
   try {
     // Check if symlink or directory exists and remove it
@@ -594,19 +544,19 @@ function sanitizeReportData(data: any): any {
 
   const sanitized: any = {};
   const secretFields = ['apiKey', 'api_key', 'apikey', 'key', 'secret', 'token', 'password', 'authorization'];
-  
+
   for (const [key, value] of Object.entries(data)) {
     const lowerKey = key.toLowerCase();
-    
+
     // Skip fields that might contain secrets
     if (secretFields.some(sf => lowerKey.includes(sf))) {
       continue;
     }
-    
+
     // Recursively sanitize nested objects
     sanitized[key] = sanitizeReportData(value);
   }
-  
+
   return sanitized;
 }
 
@@ -617,7 +567,7 @@ function formatTimestamp(date: Date): string {
   const hours = String(date.getHours()).padStart(2, '0');
   const minutes = String(date.getMinutes()).padStart(2, '0');
   const seconds = String(date.getSeconds()).padStart(2, '0');
-  
+
   return `${year}${month}${day}-${hours}${minutes}${seconds}`;
 }
 
@@ -709,17 +659,17 @@ function printDiagnosis(reportData: any): void {
     const findings = checkResult.findings || [];
     const checkNotDetected = checkResult.not_detected || [];
     const checkNotObservable = checkResult.not_observable || [];
-    
+
     for (const finding of findings) {
       const severity = finding.severity || 'info';
       const message = finding.message || '';
-      
+
       // Detected items (with evidence)
       if (message) {
         detected.push([severity, checkName, message]);
       }
     }
-    
+
     // Aggregate not detected and not observable items
     notDetected.push(...checkNotDetected);
     checkNotObservable.forEach((item: string) => {
@@ -796,7 +746,7 @@ function displaySummary(reportData: any, reportDir: string): void {
       }
       if (mostSevereFinding && findings.some((f: any) => f.severity === 'error')) break;
     }
-    
+
     // Find what we can't see
     let cannotSee = '';
     for (const checkName in checks) {
@@ -809,7 +759,7 @@ function displaySummary(reportData: any, reportDir: string): void {
     if (!cannotSee) {
       cannotSee = 'retry behavior, partial streams, concurrency';
     }
-    
+
     // Provider-specific env var
     let envVar = 'OPENAI_BASE_URL';
     if (provider === 'anthropic') {
@@ -817,10 +767,10 @@ function displaySummary(reportData: any, reportDir: string): void {
     } else if (provider === 'gemini') {
       envVar = 'GEMINI_BASE_URL';
     }
-    
+
     // Detect original base URL (strip /v1 if present for revert)
     let originalBaseUrl = baseUrl;
-    
+
     console.log('\n' + '='.repeat(60));
     if (mostSevereFinding) {
       console.log(`\nWhat I found: ${mostSevereFinding}`);
