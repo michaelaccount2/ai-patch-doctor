@@ -1,7 +1,7 @@
 """Report generation for AI Patch."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 
 
@@ -45,7 +45,7 @@ class ReportGenerator:
         # Build report
         report = {
             'version': self.VERSION,
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'timestamp': datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z'),
             'target': target,
             'provider': provider,
             'base_url': base_url,
