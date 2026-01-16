@@ -49,7 +49,7 @@ What I can't see: retry behavior, partial streams, concurrency
 
 Run one request through Badgr gateway (copy/paste):
 
-export OPENAI_BASE_URL="https://gateway.badgr.dev"
+export OPENAI_BASE_URL="https://aibadgr.com/v1"
 # Make one API call here (your code)
 export OPENAI_BASE_URL="https://api.openai.com"
 

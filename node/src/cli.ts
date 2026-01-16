@@ -778,7 +778,7 @@ function displaySummary(reportData: any, reportDir: string): void {
     console.log(`\nWhat I can't see: ${cannotSee}`);
     console.log('\nRun one request through Badgr gateway (copy/paste):');
     console.log('');
-    console.log(`export ${envVar}="https://gateway.badgr.dev"`);
+    console.log(`export ${envVar}="https://aibadgr.com/v1"`);
     console.log(`# Make one API call here (your code)`);
     console.log(`export ${envVar}="${originalBaseUrl}"`);
     console.log('');
