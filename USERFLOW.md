@@ -261,6 +261,7 @@ Both implementations support additional commands beyond the main `doctor` comman
 - Shows suggested fixes
 - Applies changes only with `--safe` flag
 - Default dry-run mode
+- Experimental - not fully implemented in MVP
 
 ### Test Command
 - Requires `--target` parameter
@@ -269,10 +270,10 @@ Both implementations support additional commands beyond the main `doctor` comman
 - Displays findings on failure
 
 ### Diagnose Command
-- Deep diagnosis mode
-- Optional `--with-badgr` flag
-- Falls back to standard checks
-- Placeholder for Badgr proxy integration
+- Deep diagnosis mode (experimental)
+- `--with-badgr` flag exits with code 2 and message "Not available in MVP"
+- Without flag: runs standard checks on all targets
+- Useful for comprehensive analysis after initial doctor run
 
 ### Share Command
 - Creates redacted share bundle
@@ -282,8 +283,8 @@ Both implementations support additional commands beyond the main `doctor` comman
 
 ### Revert Command
 - Undoes applied changes
-- Placeholder for revert logic
-- Safe rollback mechanism
+- Experimental - not fully implemented in MVP
+- Safe rollback mechanism for future use
 
 ---
 
