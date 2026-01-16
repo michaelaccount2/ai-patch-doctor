@@ -84,8 +84,8 @@ If missing API key in interactive mode, use `promptHidden()` to securely read AP
 ### Step 26: Handle Hidden Input
 Raw mode enabled on stdin, characters read one by one, backspace handled, no echo to terminal.
 
-### Step 27: Prompt for Missing Base URL
-If missing base URL, prompt with default based on provider (api.openai.com, api.anthropic.com, or generativelanguage.googleapis.com).
+### Step 27: Auto-Fill Missing Base URL
+If missing base URL, automatically set it based on provider (api.openai.com, api.anthropic.com, or generativelanguage.googleapis.com). No prompt required.
 
 ### Step 28: Final Configuration Validation
 Check if config is valid after prompting, exit with code 2 if still invalid.
@@ -208,8 +208,8 @@ If missing API key in interactive mode, use `getpass.getpass()` for secure hidde
 ### Step 26: Handle Hidden Input
 Getpass module reads password without echoing characters to terminal.
 
-### Step 27: Prompt for Missing Base URL
-If missing base URL, use `click.prompt()` with provider-specific default URL.
+### Step 27: Auto-Fill Missing Base URL
+If missing base URL, automatically set it based on provider. No prompt required - uses provider-specific default URL.
 
 ### Step 28: Final Configuration Validation
 Check `config.is_valid()` after prompting, call `sys.exit(2)` if still invalid.
@@ -297,21 +297,22 @@ Both implementations support additional commands beyond the main `doctor` comman
 5. Shows warnings but continues
 6. Allows manual API key entry
 
-### Non-Interactive Mode (default)
-1. No prompts displayed
-2. Exits immediately on missing config
-3. Uses defaults where possible
-4. All config from environment or flags
-5. Suitable for CI/CD pipelines
-6. Fail-fast behavior
+### Non-Interactive Mode (default / frictionless mode)
+1. No preference menus (target, provider)
+2. Allows essential prompts (API key) if TTY available
+3. Exits immediately on missing config if no TTY
+4. Uses defaults where possible
+5. All config from environment, flags, or essential prompts
+6. Suitable for terminal use with minimal friction
 
 ### CI Mode (`--ci` flag)
-1. Explicitly disables all prompts
+1. Explicitly disables all prompts (including essential prompts)
 2. Strict validation
 3. Clear error messages
 4. Exit code 2 for configuration errors
 5. Exit code 1 for diagnostic failures
 6. Exit code 0 only on complete success
+7. Suitable for CI/CD pipelines with fail-fast behavior
 
 ---
 
