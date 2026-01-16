@@ -30,6 +30,9 @@ def check(config: Config) -> Dict[str, Any]:
         # Make a test request
         response = httpx.post(url, headers=headers, json=payload, timeout=30.0)
         
+        if response.is_error and response.status_code != 429:
+            response.raise_for_status()
+        
         # Check for rate limit headers
         if 'retry-after' in response.headers:
             retry_after = response.headers['retry-after']

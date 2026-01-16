@@ -42,6 +42,10 @@ export async function checkRetries(config: Config): Promise<CheckResult> {
       body: JSON.stringify(payload),
     });
 
+    if (!response.ok && response.status !== 429) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
     // Check for rate limit headers
     const retryAfter = response.headers.get('retry-after');
     if (retryAfter) {
