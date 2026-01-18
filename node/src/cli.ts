@@ -669,7 +669,7 @@ function printDiagnosis(reportData: any): void {
     });
   } else {
     console.log('\nDetected:');
-    console.log('  • No issues detected');
+    console.log('  • (none)');
   }
 
   // Not detected section
@@ -682,7 +682,7 @@ function printDiagnosis(reportData: any): void {
 
   // Success message (RULE 6)
   if (status === 'success') {
-    console.log('\nAll checks passed for this run. This tool does not monitor production.');
+    console.log('\nProvider probe looks healthy. For production incidents, run traffic through Badgr receipts.');
   }
 
   // Not observable section (only if status != success)
