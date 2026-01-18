@@ -5,11 +5,14 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { generateInstallId } from './telemetry';
 
 interface SavedConfig {
   apiKey?: string;
   baseUrl?: string;
   provider?: string;
+  installId?: string;
+  telemetryEnabled?: boolean;
 }
 
 export class Config {
@@ -112,7 +115,9 @@ export function loadSavedConfig(): SavedConfig | null {
     return {
       apiKey: config.apiKey,
       baseUrl: config.baseUrl,
-      provider: config.provider
+      provider: config.provider,
+      installId: config.installId,
+      telemetryEnabled: config.telemetryEnabled
     };
   } catch (error) {
     // Silently fail and return null
@@ -157,6 +162,14 @@ export function saveConfig(config: SavedConfig): string[] {
     if (config.provider) {
       configData.provider = config.provider;
       savedFields.push('provider');
+    }
+    if (config.installId) {
+      configData.installId = config.installId;
+      savedFields.push('install_id');
+    }
+    if (config.telemetryEnabled !== undefined) {
+      configData.telemetryEnabled = config.telemetryEnabled;
+      savedFields.push('telemetry_enabled');
     }
 
     // Write config file
@@ -269,4 +282,40 @@ export function autoDetectProvider(
   }
 
   return [selectedProvider, detectedKeys, selectedKeyName, warningMessage];
+}
+
+/**
+ * Get or create install_id for telemetry
+ * 
+ * - Loads from config if exists
+ * - Generates new UUID if not
+ * - Saves to config automatically
+ * 
+ * Returns: [installId, isFirstRun]
+ */
+export function getOrCreateInstallId(): [string, boolean] {
+  try {
+    const savedConfig = loadSavedConfig();
+    
+    // If install_id exists, return it
+    if (savedConfig?.installId) {
+      return [savedConfig.installId, false];
+    }
+    
+    // Generate new install_id
+    const installId = generateInstallId();
+    
+    // Save to config
+    const configToSave: SavedConfig = {
+      ...(savedConfig || {}),
+      installId
+    };
+    
+    saveConfig(configToSave);
+    
+    return [installId, true];
+  } catch (error) {
+    // If anything fails, generate a new ID without saving
+    return [generateInstallId(), false];
+  }
 }
