@@ -365,5 +365,125 @@ describe('AI Patch Doctor - Feature Tests', () => {
   });
 });
 
+describe('AI Patch Doctor - Telemetry Tests', () => {
+  describe('Telemetry Module Exists', () => {
+    test('Node telemetry module exists', () => {
+      const telemetryPath = path.join(__dirname, 'node', 'telemetry.ts');
+      expect(fs.existsSync(telemetryPath)).toBe(true);
+    });
+
+    test('Python telemetry module exists', () => {
+      const telemetryPath = path.join(__dirname, 'python', 'src', 'ai_patch', 'telemetry.py');
+      expect(fs.existsSync(telemetryPath)).toBe(true);
+    });
+  });
+
+  describe('Telemetry Functions', () => {
+    test('Node telemetry has required functions', () => {
+      const telemetryPath = path.join(__dirname, 'node', 'telemetry.ts');
+      const content = fs.readFileSync(telemetryPath, 'utf8');
+      
+      expect(content).toContain('generateInstallId');
+      expect(content).toContain('getDurationBucket');
+      expect(content).toContain('isTelemetryEnabled');
+      expect(content).toContain('sendTelemetryEvent');
+      expect(content).toContain('sendDoctorRunEvent');
+    });
+
+    test('Python telemetry has required functions', () => {
+      const telemetryPath = path.join(__dirname, 'python', 'src', 'ai_patch', 'telemetry.py');
+      const content = fs.readFileSync(telemetryPath, 'utf8');
+      
+      expect(content).toContain('generate_install_id');
+      expect(content).toContain('get_duration_bucket');
+      expect(content).toContain('is_telemetry_enabled');
+      expect(content).toContain('send_telemetry_event');
+      expect(content).toContain('send_doctor_run_event');
+    });
+  });
+
+  describe('Config Updates for Telemetry', () => {
+    test('Node config supports installId', () => {
+      const configPath = path.join(__dirname, 'node', 'config.ts');
+      const content = fs.readFileSync(configPath, 'utf8');
+      
+      expect(content).toContain('installId');
+      expect(content).toContain('telemetryEnabled');
+      expect(content).toContain('getOrCreateInstallId');
+    });
+
+    test('Python config supports installId', () => {
+      const configPath = path.join(__dirname, 'python', 'src', 'ai_patch', 'config.py');
+      const content = fs.readFileSync(configPath, 'utf8');
+      
+      expect(content).toContain('installId');
+      expect(content).toContain('telemetryEnabled');
+      expect(content).toContain('get_or_create_install_id');
+    });
+  });
+
+  describe('CLI Integration', () => {
+    test('Node CLI has --no-telemetry flag', () => {
+      const cliPath = path.join(__dirname, 'node', 'src', 'cli.ts');
+      const content = fs.readFileSync(cliPath, 'utf8');
+      
+      expect(content).toContain('--no-telemetry');
+      expect(content).toContain('sendDoctorRunEvent');
+      expect(content).toContain('isTelemetryEnabled');
+    });
+
+    test('Python CLI has --no-telemetry flag', () => {
+      const cliPath = path.join(__dirname, 'python', 'src', 'ai_patch', 'cli.py');
+      const content = fs.readFileSync(cliPath, 'utf8');
+      
+      expect(content).toContain('--no-telemetry');
+      expect(content).toContain('send_doctor_run_event');
+      expect(content).toContain('is_telemetry_enabled');
+    });
+  });
+
+  describe('Privacy and Security', () => {
+    test('Node telemetry does not log sensitive data', () => {
+      const telemetryPath = path.join(__dirname, 'node', 'telemetry.ts');
+      const content = fs.readFileSync(telemetryPath, 'utf8');
+      
+      // Should have privacy documentation
+      expect(content).toContain('Strictly forbidden');
+      expect(content).toContain('Prompts, payloads, request bodies');
+      expect(content).toContain('API keys');
+      
+      // Should not include API key or other sensitive fields in event
+      expect(content).not.toContain('apiKey:');
+      expect(content).not.toContain('api_key:');
+    });
+
+    test('Python telemetry does not log sensitive data', () => {
+      const telemetryPath = path.join(__dirname, 'python', 'src', 'ai_patch', 'telemetry.py');
+      const content = fs.readFileSync(telemetryPath, 'utf8');
+      
+      // Should have privacy documentation
+      expect(content).toContain('Strictly forbidden');
+      expect(content).toContain('Prompts, payloads, request bodies');
+      expect(content).toContain('API keys');
+    });
+  });
+
+  describe('Opt-out Mechanisms', () => {
+    test('Node telemetry respects environment variable', () => {
+      const telemetryPath = path.join(__dirname, 'node', 'telemetry.ts');
+      const content = fs.readFileSync(telemetryPath, 'utf8');
+      
+      expect(content).toContain('AI_PATCH_TELEMETRY');
+    });
+
+    test('Python telemetry respects environment variable', () => {
+      const telemetryPath = path.join(__dirname, 'python', 'src', 'ai_patch', 'telemetry.py');
+      const content = fs.readFileSync(telemetryPath, 'utf8');
+      
+      expect(content).toContain('AI_PATCH_TELEMETRY');
+    });
+  });
+});
+
 console.log('\n✅ AI Patch Doctor Test Suite');
 console.log('Testing code reuse, structure, and functionality...\n');

@@ -171,12 +171,45 @@ ai-patch doctor --target=streaming
 # Run all checks
 ai-patch doctor --target=all
 
+# Disable telemetry for this run
+ai-patch doctor --no-telemetry
+
 # Test a specific component
 ai-patch test --target=retries
 
 # Share report (redacted for privacy)
 ai-patch share --redact
 ```
+
+### Anonymous Telemetry
+
+AI Patch collects anonymous usage data to help maintainers understand which AI issues users are facing. This helps prioritize development and improve the tool.
+
+**What is collected:**
+- Install ID (random UUID, locally generated)
+- CLI version
+- Operating system and architecture
+- Target check type (streaming, retries, cost, trace, all)
+- Provider type (openai-compatible, anthropic, gemini)
+- Status (success, warning, error)
+- Duration bucket (anonymized time ranges)
+- Timestamp
+
+**What is NOT collected:**
+- No prompts, payloads, or request bodies
+- No API keys, base URLs, or file paths
+- No repository names or model names
+- No user or company identifiers
+- No tracking or monitoring over time
+
+**Opt-out options:**
+Telemetry is enabled by default (opt-out model). You can disable it:
+
+1. Use the `--no-telemetry` flag: `ai-patch doctor --no-telemetry`
+2. Set environment variable: `export AI_PATCH_TELEMETRY=0`
+3. Set in config file: `~/.ai-patch/config.json` with `"telemetryEnabled": false`
+
+On first run in an interactive terminal, you'll be prompted to enable or disable telemetry. Your choice is saved and respected for future runs.
 
 ---
 
