@@ -29,6 +29,7 @@ That's it! The doctor will interactively diagnose your AI API setup and generate
 - [Features](#-features)
 - [Installation](#-installation)
 - [Usage](#-usage)
+- [Example Outputs](./EXAMPLES.md) 📚
 - [The 4 Wedge Checks](#-the-4-wedge-checks)
 - [Supported Providers](#-supported-providers)
 - [Architecture](#-architecture)
@@ -116,6 +117,8 @@ npm run build
 ---
 
 ## 💻 Usage
+
+> 📚 **See [EXAMPLES.md](./EXAMPLES.md) for comprehensive example outputs for all scenarios**
 
 ### Interactive Mode (Recommended)
 

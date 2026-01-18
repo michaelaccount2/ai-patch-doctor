@@ -65,10 +65,7 @@ export async function checkTrace(config: Config): Promise<CheckResult> {
       });
       metrics.provider_request_id = providerRequestId;
     } else {
-      findings.push({
-        severity: 'warning',
-        message: 'Provider request ID not found in response headers',
-      });
+      // Don't add to findings - "not found" belongs in not_detected only
       notDetected.push('Provider request ID (not found in response headers)');
     }
 
