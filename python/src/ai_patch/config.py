@@ -6,6 +6,15 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any, Tuple
 from dataclasses import dataclass
 
+# Import after module is created
+try:
+    from .telemetry import generate_install_id
+except ImportError:
+    # Fallback for development
+    import uuid
+    def generate_install_id() -> str:
+        return str(uuid.uuid4())
+
 
 @dataclass
 class Config:
@@ -95,7 +104,7 @@ def load_saved_config() -> Optional[Dict[str, Any]]:
     """Load saved configuration from home directory (~/.ai-patch/config.json).
     
     Returns:
-        Dictionary with apiKey and baseUrl, or None if file doesn't exist or can't be read
+        Dictionary with config fields, or None if file doesn't exist or can't be read
     """
     try:
         home_dir = Path.home()
@@ -109,7 +118,10 @@ def load_saved_config() -> Optional[Dict[str, Any]]:
         
         return {
             'apiKey': config_data.get('apiKey'),
-            'baseUrl': config_data.get('baseUrl')
+            'baseUrl': config_data.get('baseUrl'),
+            'provider': config_data.get('provider'),
+            'installId': config_data.get('installId'),
+            'telemetryEnabled': config_data.get('telemetryEnabled')
         }
     except Exception:
         # Silently fail and return None
@@ -119,7 +131,9 @@ def load_saved_config() -> Optional[Dict[str, Any]]:
 def save_config(
     api_key: Optional[str] = None, 
     base_url: Optional[str] = None,
-    provider: Optional[str] = None
+    provider: Optional[str] = None,
+    install_id: Optional[str] = None,
+    telemetry_enabled: Optional[bool] = None
 ) -> List[str]:
     """Save configuration to home directory (~/.ai-patch/config.json).
     
@@ -130,6 +144,8 @@ def save_config(
         api_key: API key to save
         base_url: Base URL to save
         provider: Provider to save
+        install_id: Install ID to save
+        telemetry_enabled: Telemetry preference to save
         
     Returns:
         List of fields that were saved
@@ -142,8 +158,17 @@ def save_config(
         # Create directory if it doesn't exist
         config_dir.mkdir(parents=True, exist_ok=True)
         
+        # Load existing config if it exists
+        existing_config = {}
+        if config_path.exists():
+            try:
+                with open(config_path, 'r') as f:
+                    existing_config = json.load(f)
+            except Exception:
+                pass
+        
         # Prepare config data
-        config_data = {}
+        config_data = existing_config.copy()
         saved_fields = []
         
         if api_key:
@@ -155,6 +180,12 @@ def save_config(
         if provider:
             config_data['provider'] = provider
             saved_fields.append('provider')
+        if install_id:
+            config_data['installId'] = install_id
+            saved_fields.append('install_id')
+        if telemetry_enabled is not None:
+            config_data['telemetryEnabled'] = telemetry_enabled
+            saved_fields.append('telemetry_enabled')
         
         # Write config file
         with open(config_path, 'w') as f:
@@ -258,4 +289,33 @@ def auto_detect_provider(
             warning_message = f"No API keys found. Set {selected_key_name} or run with -i"
     
     return (selected_provider, detected_keys, selected_key_name, warning_message)
+
+
+def get_or_create_install_id() -> Tuple[str, bool]:
+    """Get or create install_id for telemetry.
+    
+    - Loads from config if exists
+    - Generates new UUID if not
+    - Saves to config automatically
+    
+    Returns:
+        Tuple of (install_id, is_first_run)
+    """
+    try:
+        saved_config = load_saved_config()
+        
+        # If install_id exists, return it
+        if saved_config and saved_config.get('installId'):
+            return (saved_config['installId'], False)
+        
+        # Generate new install_id
+        install_id = generate_install_id()
+        
+        # Save to config
+        save_config(install_id=install_id)
+        
+        return (install_id, True)
+    except Exception:
+        # If anything fails, generate a new ID without saving
+        return (generate_install_id(), False)
 
