@@ -1,6 +1,6 @@
 {
   "name": "ai-patch",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Fix-first incident patcher for AI API issues - diagnose streaming, retries, cost, and traceability problems",
   "main": "dist/src/index.js",
   "bin": {
@@ -25,7 +25,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/michaelbrinkworth/ai-patch-doctor.git",
+    "url": "git+https://github.com/michaelbrinkworth/ai-patch-doctor.git",
     "directory": "node"
   },
   "bugs": {
