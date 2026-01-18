@@ -135,6 +135,10 @@ def send_doctor_run_event(
     duration_seconds: float
 ) -> None:
     """Create and send a doctor_run telemetry event."""
+    # Use timezone-aware datetime for better future compatibility
+    from datetime import timezone
+    timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+    
     event = {
         'event': EVENT_NAME,
         'install_id': install_id,
@@ -145,7 +149,7 @@ def send_doctor_run_event(
         'provider_type': provider,
         'status': status,
         'duration_bucket': get_duration_bucket(duration_seconds),
-        'timestamp': datetime.utcnow().isoformat() + 'Z'
+        'timestamp': timestamp
     }
     
     send_telemetry_event(event)
