@@ -28,9 +28,8 @@ from typing import Optional, Dict, Any
 from posthog import Posthog
 
 # PostHog configuration
-# NOTE: This is a placeholder key. Replace with your actual PostHog API key
-# For production use, consider using an environment variable: os.getenv('POSTHOG_API_KEY')
-POSTHOG_API_KEY = 'phc_2MqZqgBMqVLmqmqZQqBMqVLmqmqZQqBMqVLmqmqZQqB'
+# Write-only API key - safe to use in public apps
+POSTHOG_API_KEY = 'phc_FrjAyzOmzkxySC7qssHHCgtCZYMaXkmvl7Zb1MqAtnK'
 POSTHOG_HOST = 'https://us.i.posthog.com'
 EVENT_NAME = 'doctor_run'
 
