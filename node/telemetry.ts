@@ -1,5 +1,5 @@
 /**
- * Telemetry module for anonymous usage tracking
+ * Telemetry module for anonymous usage tracking using PostHog
  * 
  * Purpose: Help maintainers understand which AI issues users are facing
  * Privacy: No user identification, tracking, or sensitive data collection
@@ -21,19 +21,30 @@
  * - Any user or company identifiers
  */
 
-import * as https from 'https';
-import * as http from 'http';
 import * as os from 'os';
-import { URL } from 'url';
 import { v4 as uuidv4 } from 'uuid';
+import { PostHog } from 'posthog-node';
 
-const TELEMETRY_ENDPOINT = 'https://telemetry.aibadgr.com/v1/telemetry/events';
+// PostHog configuration
+const POSTHOG_API_KEY = 'phc_2MqZqgBMqVLmqmqZQqBMqVLmqmqZQqBMqVLmqmqZQqB';
+const POSTHOG_HOST = 'https://us.i.posthog.com';
 const EVENT_NAME = 'doctor_run';
-const TELEMETRY_TIMEOUT = 2000; // 2 seconds max
+
+// Initialize PostHog client
+let posthogClient: PostHog | null = null;
+
+function getPostHogClient(): PostHog {
+  if (!posthogClient) {
+    posthogClient = new PostHog(POSTHOG_API_KEY, {
+      host: POSTHOG_HOST,
+      flushAt: 1, // Flush immediately
+      flushInterval: 0, // Don't batch
+    });
+  }
+  return posthogClient;
+}
 
 export interface TelemetryEvent {
-  event: string;
-  install_id: string;
   cli_version: string;
   os: string;
   arch: string;
@@ -41,7 +52,6 @@ export interface TelemetryEvent {
   provider_type: string;
   status: 'success' | 'warning' | 'error';
   duration_bucket: string;
-  timestamp: string;
 }
 
 /**
@@ -98,63 +108,33 @@ export function isTelemetryEnabled(
 }
 
 /**
- * Send telemetry event (fire-and-forget)
+ * Send telemetry event using PostHog (fire-and-forget)
  * 
  * - Never blocks or slows the CLI
  * - Fails silently on network errors
  * - Never changes CLI exit codes
- * - Times out after 2 seconds
  */
-export function sendTelemetryEvent(event: TelemetryEvent): void {
+export function sendTelemetryEvent(installId: string, properties: TelemetryEvent): void {
   // Fire-and-forget: don't await, don't block
-  sendEventAsync(event).catch(() => {
+  try {
+    const client = getPostHogClient();
+    
+    // Capture event with PostHog
+    client.capture({
+      distinctId: installId,
+      event: EVENT_NAME,
+      properties: properties,
+    });
+
+    // Shutdown client after a short delay to ensure event is sent
+    setTimeout(() => {
+      client.shutdown().catch(() => {
+        // Silently ignore shutdown errors
+      });
+    }, 100);
+  } catch (error) {
     // Silently ignore all errors
-  });
-}
-
-/**
- * Internal async function to send telemetry event
- */
-async function sendEventAsync(event: TelemetryEvent): Promise<void> {
-  return new Promise((resolve) => {
-    try {
-      const url = new URL(TELEMETRY_ENDPOINT);
-      const postData = JSON.stringify(event);
-
-      const options = {
-        hostname: url.hostname,
-        port: url.port || (url.protocol === 'https:' ? 443 : 80),
-        path: url.pathname + url.search,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(postData),
-          'User-Agent': `ai-patch-cli/${event.cli_version}`,
-        },
-        timeout: TELEMETRY_TIMEOUT,
-      };
-
-      const protocol = url.protocol === 'https:' ? https : http;
-      const req = protocol.request(options, (res) => {
-        // Drain response to free up resources
-        res.on('data', () => {});
-        res.on('end', () => resolve());
-        res.on('error', () => resolve());
-      });
-
-      req.on('error', () => resolve());
-      req.on('timeout', () => {
-        req.destroy();
-        resolve();
-      });
-
-      req.write(postData);
-      req.end();
-    } catch (error) {
-      // Silently ignore all errors
-      resolve();
-    }
-  });
+  }
 }
 
 /**
@@ -168,9 +148,7 @@ export function sendDoctorRunEvent(
   status: 'success' | 'warning' | 'error',
   durationSeconds: number
 ): void {
-  const event: TelemetryEvent = {
-    event: EVENT_NAME,
-    install_id: installId,
+  const properties: TelemetryEvent = {
     cli_version: cliVersion,
     os: os.platform(),
     arch: os.arch(),
@@ -178,8 +156,7 @@ export function sendDoctorRunEvent(
     provider_type: provider,
     status,
     duration_bucket: getDurationBucket(durationSeconds),
-    timestamp: new Date().toISOString(),
   };
 
-  sendTelemetryEvent(event);
+  sendTelemetryEvent(installId, properties);
 }

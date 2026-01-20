@@ -183,7 +183,7 @@ ai-patch share --redact
 
 ### Anonymous Telemetry
 
-AI Patch collects anonymous usage data to help maintainers understand which AI issues users are facing. This helps prioritize development and improve the tool.
+AI Patch collects anonymous usage data via PostHog to help maintainers understand which AI issues users are facing. This helps prioritize development and improve the tool.
 
 **What is collected:**
 - Install ID (random UUID, locally generated)
@@ -193,7 +193,6 @@ AI Patch collects anonymous usage data to help maintainers understand which AI i
 - Provider type (openai-compatible, anthropic, gemini)
 - Status (success, warning, error)
 - Duration bucket (anonymized time ranges)
-- Timestamp
 
 **What is NOT collected:**
 - No prompts, payloads, or request bodies
@@ -201,6 +200,9 @@ AI Patch collects anonymous usage data to help maintainers understand which AI i
 - No repository names or model names
 - No user or company identifiers
 - No tracking or monitoring over time
+
+**Telemetry Backend:**
+Data is sent to PostHog Cloud (US region) for analytics. The PostHog API key is embedded in the CLI code for simplicity.
 
 **Opt-out options:**
 Telemetry is enabled by default (opt-out model). You can disable it:

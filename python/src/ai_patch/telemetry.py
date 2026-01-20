@@ -1,4 +1,4 @@
-"""Telemetry module for anonymous usage tracking.
+"""Telemetry module for anonymous usage tracking using PostHog.
 
 Purpose: Help maintainers understand which AI issues users are facing
 Privacy: No user identification, tracking, or sensitive data collection
@@ -21,19 +21,29 @@ Strictly forbidden:
 """
 
 import os
-import json
 import platform
 import uuid
 from typing import Optional, Dict, Any
-from datetime import datetime
-import threading
-import urllib.request
-import urllib.error
+from posthog import Posthog
 
-
-TELEMETRY_ENDPOINT = 'https://telemetry.aibadgr.com/v1/telemetry/events'
+# PostHog configuration
+POSTHOG_API_KEY = 'phc_2MqZqgBMqVLmqmqZQqBMqVLmqmqZQqBMqVLmqmqZQqB'
+POSTHOG_HOST = 'https://us.i.posthog.com'
 EVENT_NAME = 'doctor_run'
-TELEMETRY_TIMEOUT = 2  # 2 seconds max
+
+# Initialize PostHog client
+_posthog_client = None
+
+
+def get_posthog_client() -> Posthog:
+    """Get or create PostHog client singleton."""
+    global _posthog_client
+    if _posthog_client is None:
+        _posthog_client = Posthog(
+            api_key=POSTHOG_API_KEY,
+            host=POSTHOG_HOST,
+        )
+    return _posthog_client
 
 
 def generate_install_id() -> str:
@@ -89,38 +99,25 @@ def is_telemetry_enabled(
     return True
 
 
-def send_telemetry_event(event: Dict[str, Any]) -> None:
-    """Send telemetry event (fire-and-forget).
+def send_telemetry_event(install_id: str, properties: Dict[str, Any]) -> None:
+    """Send telemetry event using PostHog (fire-and-forget).
     
     - Never blocks or slows the CLI
     - Fails silently on network errors
     - Never changes CLI exit codes
-    - Times out after 2 seconds
     """
-    # Fire-and-forget: run in background thread
-    thread = threading.Thread(target=_send_event_async, args=(event,), daemon=True)
-    thread.start()
-
-
-def _send_event_async(event: Dict[str, Any]) -> None:
-    """Internal function to send telemetry event in background thread."""
     try:
-        data = json.dumps(event).encode('utf-8')
+        client = get_posthog_client()
         
-        req = urllib.request.Request(
-            TELEMETRY_ENDPOINT,
-            data=data,
-            headers={
-                'Content-Type': 'application/json',
-                'User-Agent': f"ai-patch-cli/{event.get('cli_version', 'unknown')}"
-            },
-            method='POST'
+        # Capture event with PostHog
+        client.capture(
+            distinct_id=install_id,
+            event=EVENT_NAME,
+            properties=properties,
         )
         
-        # Send request with timeout
-        with urllib.request.urlopen(req, timeout=TELEMETRY_TIMEOUT) as response:
-            # Drain response to free up resources
-            response.read()
+        # Flush to ensure event is sent
+        client.flush()
     except Exception:
         # Silently ignore all errors
         pass
@@ -135,13 +132,7 @@ def send_doctor_run_event(
     duration_seconds: float
 ) -> None:
     """Create and send a doctor_run telemetry event."""
-    # Use timezone-aware datetime for better future compatibility
-    from datetime import timezone
-    timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
-    
-    event = {
-        'event': EVENT_NAME,
-        'install_id': install_id,
+    properties = {
         'cli_version': cli_version,
         'os': platform.system().lower(),
         'arch': platform.machine(),
@@ -149,7 +140,6 @@ def send_doctor_run_event(
         'provider_type': provider,
         'status': status,
         'duration_bucket': get_duration_bucket(duration_seconds),
-        'timestamp': timestamp
     }
     
-    send_telemetry_event(event)
+    send_telemetry_event(install_id, properties)
