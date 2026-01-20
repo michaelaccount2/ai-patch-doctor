@@ -12,7 +12,8 @@
  * - provider_type
  * - status (success/warning/error)
  * - duration_bucket
- * - timestamp
+ * 
+ * Note: PostHog automatically adds timestamp to events
  * 
  * Strictly forbidden:
  * - Prompts, payloads, request bodies
@@ -26,6 +27,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { PostHog } from 'posthog-node';
 
 // PostHog configuration
+// NOTE: This is a placeholder key. Replace with your actual PostHog API key
+// For production use, consider using an environment variable: process.env.POSTHOG_API_KEY
 const POSTHOG_API_KEY = 'phc_2MqZqgBMqVLmqmqZQqBMqVLmqmqZQqBMqVLmqmqZQqB';
 const POSTHOG_HOST = 'https://us.i.posthog.com';
 const EVENT_NAME = 'doctor_run';
