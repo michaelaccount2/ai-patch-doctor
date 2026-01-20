@@ -10,13 +10,20 @@ import * as path from 'path';
 import * as readline from 'readline';
 import { Writable } from 'stream';
 
+// Get CLI version from package.json
+const packageJson = JSON.parse(
+  fs.readFileSync(path.join(__dirname, '../../package.json'), 'utf-8')
+);
+const CLI_VERSION = packageJson.version || '0.1.3';
+
 // Import from shared code (relative path to ai-patch-shared)
-import { Config, loadSavedConfig, saveConfig, autoDetectProvider } from '../config';
+import { Config, loadSavedConfig, saveConfig, autoDetectProvider, getOrCreateInstallId } from '../config';
 import { ReportGenerator } from '../report';
 import { checkStreaming } from '../checks/streaming';
 import { checkRetries } from '../checks/retries';
 import { checkCost } from '../checks/cost';
 import { checkTrace } from '../checks/trace';
+import { isTelemetryEnabled, sendDoctorRunEvent } from '../telemetry';
 
 const program = new Command();
 
@@ -110,7 +117,7 @@ function promptHidden(query: string): Promise<string> {
 program
   .name('ai-patch')
   .description('AI Patch - Fix-first incident patcher for AI API issues')
-  .version('0.1.0');
+  .version(CLI_VERSION);
 
 // Default command (doctor mode)
 program
@@ -124,6 +131,7 @@ program
   .option('--save', 'Save non-secret config (base_url, provider)')
   .option('--save-key', 'Save API key (requires --force)')
   .option('--force', 'Required with --save-key to confirm key storage')
+  .option('--no-telemetry', 'Disable anonymous telemetry for this run')
   .action(async (options) => {
     // Validate conflicting flags
     if (options.interactive && options.ci) {
@@ -161,6 +169,55 @@ program
     // Welcome message (only in explicit interactive mode)
     if (options.interactive) {
       console.log('🔍 AI Patch Doctor - Interactive Mode\n');
+    }
+
+    // Initialize telemetry (get or create install_id)
+    const [installId, isFirstRun] = getOrCreateInstallId();
+    
+    // Get saved config for telemetry preferences
+    const savedConfigForTelemetry = loadSavedConfig();
+    let telemetryConsent = savedConfigForTelemetry?.telemetryEnabled;
+    
+    // First-run telemetry consent prompt (only in TTY, not in CI, not in non-interactive)
+    if (isFirstRun && canPrompt && !options.ci && process.stdin.isTTY && process.stdout.isTTY) {
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+      
+      const question = (query: string): Promise<string> => {
+        return new Promise((resolve) => rl.question(query, resolve));
+      };
+      
+      console.log('📊 Anonymous Telemetry');
+      console.log('   Help improve AI Patch by sharing anonymous usage data.');
+      console.log('   Only diagnostic patterns are collected (no secrets, prompts, or identifiers).');
+      console.log('   You can opt-out anytime with --no-telemetry or AI_PATCH_TELEMETRY=0\n');
+      
+      const answer = await question('Enable anonymous telemetry? [Y/n]: ');
+      const response = answer.trim().toLowerCase();
+      
+      if (response === 'n' || response === 'no') {
+        telemetryConsent = false;
+        // Save the preference
+        saveConfig({
+          ...(savedConfigForTelemetry || {}),
+          installId,
+          telemetryEnabled: false
+        });
+        console.log('✓ Telemetry disabled\n');
+      } else {
+        telemetryConsent = true;
+        // Save the preference
+        saveConfig({
+          ...(savedConfigForTelemetry || {}),
+          installId,
+          telemetryEnabled: true
+        });
+        console.log('✓ Telemetry enabled\n');
+      }
+      
+      rl.close();
     }
 
     let target = options.target;
@@ -347,6 +404,23 @@ program
       if (savedFields.length > 0) {
         console.log(`\n✓ Saved config: ${savedFields.join(', ')}`);
       }
+    }
+
+    // Send telemetry event (fire-and-forget, never blocks)
+    const telemetryEnabled = isTelemetryEnabled(!options.telemetry, telemetryConsent);
+    if (telemetryEnabled) {
+      const status: 'success' | 'warning' | 'error' = 
+        reportData.summary.status === 'success' ? 'success' :
+        reportData.summary.status === 'warning' ? 'warning' : 'error';
+      
+      sendDoctorRunEvent(
+        installId,
+        CLI_VERSION,
+        target,
+        provider,
+        status,
+        duration
+      );
     }
 
     // Exit with appropriate code

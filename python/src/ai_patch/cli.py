@@ -11,10 +11,23 @@ from pathlib import Path
 from typing import Optional, Dict, Any, List
 import click
 
+# Get CLI version
+try:
+    import importlib.metadata
+    CLI_VERSION = importlib.metadata.version('ai-patch-doctor')
+except Exception:
+    CLI_VERSION = '0.1.3'
+
 # Import from package (now all in ai_patch package)
 from ai_patch.checks import streaming, retries, cost, trace
 from ai_patch.report import ReportGenerator
-from ai_patch.config import Config, load_saved_config, save_config, auto_detect_provider
+from ai_patch.config import (
+    Config, load_saved_config, save_config, auto_detect_provider, 
+    get_or_create_install_id
+)
+from ai_patch.telemetry import (
+    is_telemetry_enabled, send_doctor_run_event
+)
 
 
 
@@ -81,6 +94,8 @@ def main(ctx):
               help='Save API key (requires --force)')
 @click.option('--force', is_flag=True,
               help='Required with --save-key to confirm key storage')
+@click.option('--no-telemetry', is_flag=True,
+              help='Disable anonymous telemetry for this run')
 def doctor(
     target: Optional[str],
     interactive_flag: bool,
@@ -89,7 +104,8 @@ def doctor(
     model: Optional[str],
     save: bool,
     save_key: bool,
-    force: bool
+    force: bool,
+    no_telemetry: bool
 ):
     """Run diagnosis (non-interactive by default)."""
     
@@ -111,6 +127,31 @@ def doctor(
     # Welcome message (only in explicit interactive mode)
     if interactive_flag:
         click.echo("🔍 AI Patch Doctor - Interactive Mode\n")
+    
+    # Initialize telemetry (get or create install_id)
+    install_id, is_first_run = get_or_create_install_id()
+    
+    # Get saved config for telemetry preferences
+    saved_config_for_telemetry = load_saved_config()
+    telemetry_consent = saved_config_for_telemetry.get('telemetryEnabled') if saved_config_for_telemetry else None
+    
+    # First-run telemetry consent prompt (only in TTY, not in CI, not in non-interactive)
+    if is_first_run and can_prompt and not ci and sys.stdin.isatty() and sys.stdout.isatty():
+        click.echo("📊 Anonymous Telemetry")
+        click.echo("   Help improve AI Patch by sharing anonymous usage data.")
+        click.echo("   Only diagnostic patterns are collected (no secrets, prompts, or identifiers).")
+        click.echo("   You can opt-out anytime with --no-telemetry or AI_PATCH_TELEMETRY=0\n")
+        
+        response = click.prompt("Enable anonymous telemetry? [Y/n]", default='Y', show_default=False)
+        
+        if response.strip().lower() in ('n', 'no'):
+            telemetry_consent = False
+            save_config(install_id=install_id, telemetry_enabled=False)
+            click.echo("✓ Telemetry disabled\n")
+        else:
+            telemetry_consent = True
+            save_config(install_id=install_id, telemetry_enabled=True)
+            click.echo("✓ Telemetry enabled\n")
     
     # Interactive questions for target (only with -i flag)
     if not target and interactive_flag:
@@ -271,6 +312,22 @@ def doctor(
         )
         if saved_fields:
             click.echo(f"\n✓ Saved config: {', '.join(saved_fields)}")
+    
+    # Send telemetry event (fire-and-forget, never blocks)
+    telemetry_enabled = is_telemetry_enabled(no_telemetry, telemetry_consent)
+    if telemetry_enabled:
+        status = report_data['summary']['status']
+        if status not in ('success', 'warning', 'error'):
+            status = 'error'
+        
+        send_doctor_run_event(
+            install_id,
+            CLI_VERSION,
+            target,
+            provider,
+            status,
+            duration
+        )
     
     # Exit with appropriate code
     if report_data['summary']['status'] == 'success':
