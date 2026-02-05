@@ -24,13 +24,16 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       
-      - name: Install dependencies
+      - name: Install Node package dependencies
         working-directory: ./node
         run: npm ci
       
       - name: Build package
         working-directory: ./node
         run: npm run build
+      
+      - name: Install test dependencies
+        run: npm ci
       
       - name: Run tests
         run: npm test
