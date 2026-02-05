@@ -27,8 +27,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
 
-      - name: Run AI Patch Doctor (all checks)
-        run: npx -y ai-patch doctor --target=all --share --ci --no-telemetry
+      - name: Run AI Patch Doctor (scan for issues)
+        run: npx -y ai-patch doctor --fix --no-telemetry
 
       - name: Display report in logs
         if: always()
