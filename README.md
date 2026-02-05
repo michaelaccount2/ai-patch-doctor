@@ -35,6 +35,7 @@ That's it! The doctor will interactively diagnose your AI API setup and generate
 - [Architecture](#-architecture)
 - [Testing](#-testing)
 - [Contributing](#-contributing)
+- [Deployment](#-deployment)
 - [License](#-license)
 
 ---
@@ -424,6 +425,24 @@ python validate.py
 3. **Match the style** - Follow existing code conventions
 4. **Update docs** - Keep README and comments current
 5. **One feature per PR** - Keep pull requests focused
+
+---
+
+## 🚀 Deployment
+
+The project uses GitHub Actions for automated deployment to PyPI and npm. See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions on:
+
+- Setting up deployment secrets (PYPI_API_TOKEN and NPM_TOKEN)
+- Publishing packages via git tags
+- Manual deployment options
+- CI/CD pipeline details
+
+**Quick deploy:** Create a version tag and push it to trigger automatic deployment:
+
+```bash
+git tag v0.1.5
+git push origin v0.1.5
+```
 
 ---
 
