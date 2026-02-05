@@ -1,61 +1,80 @@
 # AI Patch Doctor 🔍⚕️
 
-**Fix AI API issues in under 60 seconds - diagnose streaming, retries, cost, and traceability problems**
+**Repository scanner and code patcher for AI API integrations**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node](https://img.shields.io/badge/node-16+-green.svg)](https://nodejs.org/)
 
-AI Patch Doctor is a command-line tool that helps developers diagnose and fix common AI API issues quickly. It provides interactive diagnostics for OpenAI, Anthropic Claude, Google Gemini, and any OpenAI-compatible API.
+Command-line utility that examines your JavaScript, TypeScript, and Python source files for AI API integration flaws, then rewrites problematic code with proper error handling, timeouts, and cost controls. Also performs live health checks against OpenAI, Anthropic Claude, Google Gemini APIs.
 
 ## 🚀 Quick Start
 
 ```bash
-# No installation needed - use npx
-npx ai-patch doctor
+# Analyze and patch your repository
+npx ai-patch doctor --fix
 
-# Or install globally
+# Or install for repeated use
 npm install -g ai-patch
-ai-patch doctor
+ai-patch doctor --fix
 ```
 
-## ✨ Key Features
+## ✨ Core Capabilities
 
-- **4 Core Diagnostics**: Streaming, Retries, Cost, and Traceability checks
-- **Multi-Provider Support**: OpenAI, Anthropic, Gemini, and OpenAI-compatible APIs
-- **Interactive Mode**: Simple 2-question flow to get started
-- **Auto-Detection**: Automatically detects API configuration from environment
-- **Detailed Reports**: JSON and Markdown reports with specific fix recommendations
+- **🔧 Static Code Repair**: Traverses your codebase and modifies problematic API integration patterns
+- **4 Specialized Probes**: Streaming, Retry, Cost, and Traceability analysis modules
+- **Multi-Provider**: Works with OpenAI, Anthropic, Gemini, plus any OpenAI-compatible endpoint
+- **Conversational Testing**: Two-question dialogue for live connection diagnostics
+- **Environment Reading**: Pulls API credentials and base URLs from your .env
+- **Post-Patch Validation**: Executes smoke tests and optionally your full test suite
+- **Structured Output**: Generates both JSON data and markdown documentation
 
-## 🔬 What It Checks
+## 🔧 Automated Corrections
 
-1. **Streaming Check** - SSE stalls, buffering issues, partial output problems
-2. **Retries Check** - Rate limit storms, retry chaos, exponential backoff
-3. **Cost Check** - Token spikes, unbounded requests, cost optimization
-4. **Traceability Check** - Request IDs, correlation tracking, duplicate detection
+The tool can rewrite these patterns without supervision:
 
-## 💻 Usage
+- ✅ **No timeout parameter** → Adds `timeout: 60000` (60s guard)
+- ✅ **Missing retry mechanism** → Wraps with exponential backoff plus jitter
+- ✅ **Linear delay retries** → Replaces with `2^attempt` progression
+- ✅ **Unbounded max_tokens** → Inserts `max_tokens: 1000` budget
+- ✅ **Excessive token ceiling** → Lowers to sensible threshold
+- ✅ **No request correlation** → Injects UUID generation and logging
+- ✅ **Buffered streaming** → Adds flush() operations where applicable
+
+## 💻 Command Examples
 
 ```bash
-# Interactive mode (recommended)
-ai-patch doctor
+# Repository modification mode
+ai-patch doctor --fix                 # Scan and apply patches
+ai-patch doctor --fix --dry-run       # Preview without writing
 
-# Run specific check
-ai-patch doctor --target=streaming
+# Live diagnostic mode
+ai-patch doctor                       # Interactive session
+ai-patch doctor --target=streaming    # Test specific subsystem
+ai-patch doctor --target=all          # Full diagnostic battery
 
-# Run all checks
-ai-patch doctor --target=all
+# Automated pipeline mode
+ai-patch doctor --ci                  # Headless operation
+ai-patch doctor --fix --ci            # Auto-repair in CI/CD
 ```
 
-## 📖 Full Documentation
+## 📖 Complete Documentation
 
-For complete documentation, examples, and advanced usage, visit:
-- **GitHub Repository**: [github.com/michaelbrinkworth/ai-patch-doctor](https://github.com/michaelbrinkworth/ai-patch-doctor)
-- **Issue Tracker**: [github.com/michaelbrinkworth/ai-patch-doctor/issues](https://github.com/michaelbrinkworth/ai-patch-doctor/issues)
+Detailed guides, examples, and advanced configuration:
+- **Source Repository**: [github.com/michaelaccount2/ai-patch-doctor](https://github.com/michaelaccount2/ai-patch-doctor)
+- **Bug Reports**: [github.com/michaelaccount2/ai-patch-doctor/issues](https://github.com/michaelaccount2/ai-patch-doctor/issues)
+
+## 🔬 Operation Flow
+
+1. **Discovery**: Walks file tree searching for AI API integration code
+2. **Analysis**: Identifies missing safeguards and poor patterns
+3. **Modification**: Rewrites problematic lines with better implementations
+4. **Validation**: Runs syntax checks and lightweight smoke tests
+5. **Documentation**: Produces detailed report of all changes
 
 ## 📄 License
 
-MIT License - see [LICENSE](https://github.com/michaelbrinkworth/ai-patch-doctor/blob/main/LICENSE) file for details.
+MIT License - see [LICENSE](https://github.com/michaelaccount2/ai-patch-doctor/blob/main/LICENSE) file for details.
 
 ---
 
-**Run the doctor. Fix your AI API. ⚕️**
+**Point it at your repo. Watch it heal your AI integrations. ⚕️**

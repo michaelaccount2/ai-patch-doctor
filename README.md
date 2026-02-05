@@ -1,25 +1,39 @@
 # AI Patch Doctor 🔍⚕️
 
-**The open-source CLI tool for diagnosing AI API issues**
+**Automated code health checks and repairs for LLM API integrations**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://img.shields.io/badge/tests-passing-brightgreen.svg)](./ai-patch.test.js)
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Node](https://img.shields.io/badge/node-14+-green.svg)](https://nodejs.org/)
 
-> Run the doctor. Diagnose your AI API issues in under 60 seconds.
+> Give it your repository. Get back production-ready AI integration code.
 
-## 🚀 Quick Start
+## 🚀 Getting Started
+
+### Option A: Let It Fix Everything (Recommended)
 
 ```bash
-# Python
-pipx run ai-patch doctor
+# JavaScript/TypeScript projects
+npx ai-patch doctor --fix
 
-# Node.js
-npx ai-patch doctor
+# Python projects  
+pipx run ai-patch doctor --fix
 ```
 
-That's it! The doctor will interactively diagnose your AI API setup and generate a detailed report.
+**The workflow:** Examines every source file → Identifies integration weaknesses → Rewrites vulnerable code → Validates changes
+
+### Option B: Run Health Checks Only
+
+```bash
+# Test your live API connections
+npx ai-patch doctor
+
+# or
+pipx run ai-patch doctor
+```
+
+This performs actual API calls to measure performance and detect configuration problems.
 
 ---
 
@@ -39,39 +53,69 @@ That's it! The doctor will interactively diagnose your AI API setup and generate
 
 ---
 
-## 🤔 What is AI Patch Doctor?
+## 🤔 What Does This Tool Do?
 
-AI Patch Doctor is a dual-language (Python + Node.js) command-line tool that helps developers **diagnose common AI API issues** quickly and efficiently. Inspired by tools like `brew doctor` and `kubectl doctor`, it provides an interactive diagnostic experience that:
+**Think of it as a specialized linter that can also fix the problems it finds.**
 
-- 🔍 **Detects configuration issues** automatically
-- ⚡ **Identifies performance bottlenecks** (streaming, timeouts, retries)
-- 💰 **Detects cost issues** (token limits, usage patterns)
-- 📊 **Checks traceability** (request IDs, correlation)
+Most developers integrating OpenAI, Claude, or Gemini APIs make the same preventable mistakes:
+- Forget to set timeouts (leading to hanging requests)
+- Implement naive retry logic (making rate-limit problems worse)
+- Skip token limits (hello surprise bills!)
+- Don't track requests (debugging becomes impossible)
 
-Perfect for:
-- Diagnosing production AI API failures
-- Validating development setups
-- Analyzing API call patterns
-- Understanding AI integration issues
+This tool has two distinct operating modes:
+
+### Mode 1: Static File Analysis (the --fix flag)
+Reads your `.js`, `.ts`, `.py` files looking for problematic API call patterns. When it finds issues, it can rewrite just those specific lines with battle-tested alternatives. No API calls made, no credentials needed.
+
+### Mode 2: Live Connection Testing (default behavior)
+Actually calls your configured AI provider APIs to measure streaming performance, retry behavior, and error handling. Produces diagnostic reports showing exactly what's working and what isn't.
+
+**Supported scenarios:**
+- Production incidents (rate limits, timeouts, cost spikes)
+- Pre-deployment hardening (find bugs before they hit prod)
+- Code review automation (integrate into CI/CD)
+- Onboarding (learn AI API best practices by seeing what gets flagged)
 
 ---
 
-## ✨ Features
+## ✨ What Makes This Useful
 
-### 🎯 Four Core Diagnostic Checks
+### 🔧 Autonomous Code Remediation
 
-1. **Streaming Check** - Diagnoses SSE stalls, buffering issues, and partial output problems
-2. **Retries Check** - Identifies retry storms, rate limit issues, and backoff problems
-3. **Cost Check** - Detects token spikes, unbounded requests, and cost optimization opportunities
-4. **Traceability Check** - Validates request IDs, correlation tracking, and duplicate detection
+**The headline feature:** This isn't just a linter that complains. It actually rewrites your code.
 
-### 🔧 Developer-Friendly
+What gets modified:
+- **Timeout guards** - Prevents indefinite hangs by adding 60-second maximums
+- **Intelligent retry loops** - Replaces broken retry logic with exponential backoff + randomization
+- **Token budget controls** - Inserts `max_tokens` parameters to cap generation costs  
+- **Request tracing** - Generates unique IDs so you can correlate requests with responses
+- **Streaming optimizations** - Adds flush operations to prevent buffer-related delays
+- **Conservative approach** - Changes only problematic lines, ignores working code
 
-- **Interactive Mode** - Simple 2-question flow to get started
-- **Auto-Detection** - Automatically detects your API configuration from environment variables
-- **Safe by Default** - Read-only diagnostic tool
-- **Detailed Reports** - JSON and Markdown reports with specific findings
-- **Zero Duplication** - Shared codebase ensures Python and Node have identical behavior
+Try it risk-free with preview mode:
+```bash
+ai-patch doctor --fix --dry-run  # Shows planned changes without modifying files
+```
+
+### 🎯 Four Diagnostic Categories
+
+The live testing mode organizes checks into four failure types:
+
+1. **Streaming Problems** - SSE connection stalls, slow first-byte times, buffer interference
+2. **Retry Failures** - Rate limit cascades, missing backoff, predictable timing
+3. **Cost Control Gaps** - Unbounded token usage, missing budget parameters
+4. **Observability Holes** - No request correlation, duplicate detection missing
+
+### 🔧 Designed For Real Development
+
+- **Works locally** - Scans files on disk, no cloud dependency
+- **Provider agnostic** - Supports OpenAI, Anthropic, Gemini, custom endpoints
+- **Reads your environment** - Pulls API keys from `.env` automatically  
+- **Safe by default** - Preview mode lets you review before committing
+- **Multiple output formats** - JSON for automation, Markdown for humans
+- **Post-modification testing** - Runs syntax checks after each change
+- **Bilingual** - Python and Node.js versions produce identical results
 
 ### 🌐 Universal Compatibility
 
@@ -120,15 +164,74 @@ npm run build
 
 > 📚 **See [EXAMPLES.md](./EXAMPLES.md) for comprehensive example outputs for all scenarios**
 
-### Interactive Mode (Recommended)
+### Mode 1: Repository Repair (Primary Workflow)
 
-Simply run the doctor command and answer 2 quick questions:
+Locate and patch coding mistakes across your project:
+
+```bash
+# Execute full scan and apply corrections
+ai-patch doctor --fix
+
+# Review proposed changes without modifying files
+ai-patch doctor --fix --dry-run
+
+# Headless operation for automated pipelines
+ai-patch doctor --fix --ci
+```
+
+**Sample console output:**
+
+```
+🔍 Scanning for fixable issues...
+
+📁 Scanned 47 files
+
+✨ Issues Found:
+
+TIMEOUT (3):
+  ❌ src/api/chat.ts:42
+     No timeout configured - risk of hung requests
+     💡 Add timeout: 60000 (60s) for API calls
+
+RETRY (2):
+  ⚠️  src/services/completion.ts:89
+     No retry logic detected for API calls
+     💡 Add exponential backoff with jitter
+
+COST (1):
+  ❌ src/lib/openai.ts:15
+     No max_tokens limit set - risk of runaway costs
+     💡 Add max_tokens: 1000 or appropriate limit
+
+🔧 Applying fixes...
+
+✅ Fix Results:
+
+  Applied: 6
+  Manual required: 0
+  Skipped (gateway-layer): 2
+
+✅ Verifying fixes...
+
+📋 Smoke Test Results:
+
+  ✅ Syntax validation
+  ✅ Import resolution
+  ✅ Retry logic
+
+  Duration: 847ms
+  ✅ All critical checks passed
+```
+
+### Mode 2: Live Connection Testing
+
+Probe your configured API endpoints with test requests:
 
 ```bash
 ai-patch doctor
 ```
 
-**Example session:**
+**Interactive session example:**
 
 ```
 🔍 AI Patch Doctor - Interactive Mode
@@ -162,23 +265,24 @@ Not detected:
   • X-Accel-Buffering header
 ```
 
-### Command-Line Options
+### Command Reference
 
 ```bash
-# Run specific check
-ai-patch doctor --target=streaming
+# Repository scanning
+ai-patch doctor --fix              # Scan + apply corrections
+ai-patch doctor --fix --dry-run    # Scan + preview only
 
-# Run all checks
-ai-patch doctor --target=all
+# Live diagnostics
+ai-patch doctor --interactive      # Force conversational mode
+ai-patch doctor --target=streaming # Test specific subsystem
+ai-patch doctor --target=all       # Run complete test battery
 
-# Disable telemetry for this run
-ai-patch doctor --no-telemetry
+# Automation
+ai-patch doctor --ci               # Headless mode for CI/CD
+ai-patch doctor --fix --ci         # Auto-repair in CI/CD
 
-# Test a specific component
-ai-patch test --target=retries
-
-# Share report (redacted for privacy)
-ai-patch share --redact
+# Privacy
+ai-patch doctor --no-telemetry     # Disable usage metrics
 ```
 
 ### Anonymous Telemetry
@@ -212,6 +316,41 @@ Telemetry is enabled by default (opt-out model). You can disable it:
 3. Set in config file: `~/.ai-patch/config.json` with `"telemetryEnabled": false`
 
 On first run in an interactive terminal, you'll be prompted to enable or disable telemetry. Your choice is saved and respected for future runs.
+
+---
+
+## 🔧 Code Modification Mechanics
+
+The repair engine can rewrite problematic patterns automatically:
+
+### Transformations Applied
+
+| Problem Detected | Code Transformation | Risk Level |
+|------------------|---------------------|------------|
+| **Missing timeout** | Inserts `timeout: 60000` (60 second limit) | ✅ Safe addition |
+| **No retry wrapper** | Surrounds call with exponential backoff loop + jitter | ✅ Defensive wrapping |
+| **Fixed-interval retries** | Replaces delay with `2^attempt * base + random()` formula | ✅ Better algorithm |
+| **Unbounded tokens** | Appends `max_tokens: 1000` budget parameter | ✅ Cost protection |
+| **Excessive token limit** | Reduces to 2000 token ceiling | ⚠️  May truncate output |
+| **No correlation ID** | Injects UUID generation and console logging | ✅ Observability boost |
+| **Stream without flush** | Adds explicit flush() invocations | ✅ Performance improvement |
+
+### Infrastructure-Layer Problems
+
+Certain fixes require changes outside application code:
+
+- **HTTP 429 rate limiting** - Needs gateway throttling (recommend AI Badgr)
+- **Idempotency enforcement** - Requires request receipt database
+- **SSE response headers** - Framework-dependent configuration (guidance provided)
+
+### Safety Mechanisms
+
+- **Precision targeting** - Only rewrites lines flagged as problematic
+- **Post-modification validation** - Checks syntactic correctness
+- **Import dependency tracking** - Ensures required modules are present
+- **Lightweight testing** - Executes minimal smoke test suite
+- **Optional full validation** - Can trigger your existing test harness
+- **Preview capability** - --dry-run shows changes before writing files
 
 ---
 
@@ -317,6 +456,9 @@ ai-patch-doctor/
 │   │   ├── retries.py       # Retry logic diagnostics
 │   │   ├── cost.py          # Cost optimization
 │   │   └── trace.py         # Request tracing
+│   ├── scanner.py           # Code scanner (static analysis)
+│   ├── fixer.py             # Auto-fix engine
+│   ├── verification.py      # Post-fix verification
 │   ├── config.py            # Config management
 │   ├── report.py            # Report generation
 │   ├── tests/               # Python tests
@@ -330,8 +472,12 @@ ai-patch-doctor/
 │   │   ├── retries.ts       # Retry logic diagnostics
 │   │   ├── cost.ts          # Cost optimization
 │   │   └── trace.ts         # Request tracing
+│   ├── scanner.ts           # Code scanner (static analysis)
+│   ├── fixer.ts             # Auto-fix engine
+│   ├── verification.ts      # Post-fix verification
 │   ├── config.ts            # Config management
 │   ├── report.ts            # Report generation
+│   ├── badgr-integration.ts # AI Badgr integration
 │   ├── package.json         # Node package config
 │   └── tsconfig.json        # TypeScript config
 │
@@ -345,10 +491,11 @@ ai-patch-doctor/
 ```
 
 **Key Principles:**
-1. **Shared Logic** - All diagnostic logic in `python/` and `node/` directories
+1. **Shared Logic** - All diagnostic and fix logic in `python/` and `node/` directories
 2. **Thin CLIs** - CLI wrappers in `src/` just handle I/O and user interaction
 3. **Identical UX** - Same commands, same output, same behavior across languages
 4. **No Duplication** - Each check implemented once per language, imported by CLI
+5. **Static + Live Analysis** - Scanner for code analysis, checks for live API diagnosis
 
 ---
 
@@ -452,8 +599,8 @@ Copyright (c) 2026 AI Patch Doctor Contributors
 
 ---
 
-**Run the doctor. Fix your AI API. ⚕️**
+**Point it at your repo. Watch it heal your AI integrations. ⚕️**
 
 ```bash
-npx ai-patch doctor
+npx ai-patch doctor --fix
 ```
