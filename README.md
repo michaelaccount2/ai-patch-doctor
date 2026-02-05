@@ -160,129 +160,56 @@ npm run build
 
 ---
 
-## 💻 Usage
+## 💻 Using This Thing
 
-> 📚 **See [EXAMPLES.md](./EXAMPLES.md) for comprehensive example outputs for all scenarios**
+> 📚 **More examples:** Check out [EXAMPLES.md](./EXAMPLES.md)
 
-### Mode 1: Repository Repair (Primary Workflow)
+### "Fix my code automatically"
 
-Locate and patch coding mistakes across your project:
+You have AI API calls scattered across your codebase. Some are probably missing timeouts. Maybe retry logic is broken. Token limits? Probably forgot those too.
 
+Run this:
 ```bash
-# Execute full scan and apply corrections
 ai-patch doctor --fix
+```
 
-# Review proposed changes without modifying files
+What happens:
+- Scans your JS/TS/Python files
+- Finds problematic API calls
+- Rewrites them with better patterns
+- Tests that nothing broke
+
+See it first without changing anything:
+```bash
 ai-patch doctor --fix --dry-run
-
-# Headless operation for automated pipelines
-ai-patch doctor --fix --ci
 ```
 
-**Sample console output:**
+### "Test my live API connection"
 
-```
-🔍 Scanning for fixable issues...
+Something's wrong with your production API calls. Maybe streaming is slow. Maybe you're getting rate limited. You need to know what's actually happening.
 
-📁 Scanned 47 files
-
-✨ Issues Found:
-
-TIMEOUT (3):
-  ❌ src/api/chat.ts:42
-     No timeout configured - risk of hung requests
-     💡 Add timeout: 60000 (60s) for API calls
-
-RETRY (2):
-  ⚠️  src/services/completion.ts:89
-     No retry logic detected for API calls
-     💡 Add exponential backoff with jitter
-
-COST (1):
-  ❌ src/lib/openai.ts:15
-     No max_tokens limit set - risk of runaway costs
-     💡 Add max_tokens: 1000 or appropriate limit
-
-🔧 Applying fixes...
-
-✅ Fix Results:
-
-  Applied: 6
-  Manual required: 0
-  Skipped (gateway-layer): 2
-
-✅ Verifying fixes...
-
-📋 Smoke Test Results:
-
-  ✅ Syntax validation
-  ✅ Import resolution
-  ✅ Retry logic
-
-  Duration: 847ms
-  ✅ All critical checks passed
-```
-
-### Mode 2: Live Connection Testing
-
-Probe your configured API endpoints with test requests:
-
+Run this:
 ```bash
 ai-patch doctor
 ```
 
-**Interactive session example:**
+It'll ask you 2 questions, then actually call your API and measure what's happening.
 
-```
-🔍 AI Patch Doctor - Interactive Mode
-
-What's failing?
-  1. streaming / SSE stalls / partial output
-  2. retries / 429 / rate-limit chaos
-  3. cost spikes
-  4. traceability (request IDs, duplicates)
-  5. prod-only issues (all checks)
-Select: 1
-
-What do you use?
-  1. openai-compatible (default)
-  2. anthropic
-  3. gemini
-Select: 1
-
-✓ Detected: https://api.openai.com
-✓ Provider: openai-compatible
-
-🔬 Running streaming checks...
-
-📊 Report saved: ai-patch-reports/20260115-123456/
-
-Detected:
-  • [streaming] TTFB: 6.2s (threshold: 5s)
-  • [streaming] Max chunk gap: 12.4s (>10s threshold)
-
-Not detected:
-  • X-Accel-Buffering header
-```
-
-### Command Reference
+### CI/CD Integration
 
 ```bash
-# Repository scanning
-ai-patch doctor --fix              # Scan + apply corrections
-ai-patch doctor --fix --dry-run    # Scan + preview only
+ai-patch doctor --ci           # Just check
+ai-patch doctor --fix --ci     # Check and fix
+```
 
-# Live diagnostics
-ai-patch doctor --interactive      # Force conversational mode
-ai-patch doctor --target=streaming # Test specific subsystem
-ai-patch doctor --target=all       # Run complete test battery
+### Other Options
 
-# Automation
-ai-patch doctor --ci               # Headless mode for CI/CD
-ai-patch doctor --fix --ci         # Auto-repair in CI/CD
-
-# Privacy
-ai-patch doctor --no-telemetry     # Disable usage metrics
+```bash
+--fix              # Change files (the main feature)
+--dry-run          # Show what would change
+--interactive      # Force question mode
+--target=streaming # Only check streaming
+--no-telemetry     # No anonymous stats
 ```
 
 ### Anonymous Telemetry
@@ -319,38 +246,26 @@ On first run in an interactive terminal, you'll be prompted to enable or disable
 
 ---
 
-## 🔧 Code Modification Mechanics
+## 🔧 What Gets Fixed
 
-The repair engine can rewrite problematic patterns automatically:
+The `--fix` flag lets the tool rewrite your code. Here's what it changes:
 
-### Transformations Applied
+| Problem | Solution | Notes |
+|---------|----------|-------|
+| No timeout | Adds timeout: 60000 | Won't hang forever anymore |
+| No retries | Wraps call in retry loop | Uses exponential backoff |
+| Bad retry timing | Fixes the math | Prevents thundering herd |
+| No max_tokens | Adds max_tokens: 1000 | Caps your costs |
+| max_tokens too high | Lowers to 2000 | Review if you need more |
+| No request IDs | Generates UUIDs | Better logging |
+| No flush() in streams | Adds flush calls | Improves streaming speed |
 
-| Problem Detected | Code Transformation | Risk Level |
-|------------------|---------------------|------------|
-| **Missing timeout** | Inserts `timeout: 60000` (60 second limit) | ✅ Safe addition |
-| **No retry wrapper** | Surrounds call with exponential backoff loop + jitter | ✅ Defensive wrapping |
-| **Fixed-interval retries** | Replaces delay with `2^attempt * base + random()` formula | ✅ Better algorithm |
-| **Unbounded tokens** | Appends `max_tokens: 1000` budget parameter | ✅ Cost protection |
-| **Excessive token limit** | Reduces to 2000 token ceiling | ⚠️  May truncate output |
-| **No correlation ID** | Injects UUID generation and console logging | ✅ Observability boost |
-| **Stream without flush** | Adds explicit flush() invocations | ✅ Performance improvement |
+Some things can't be fixed in code:
+- 429 rate limiting (need a gateway)
+- Idempotency (need a database)
+- Framework-specific headers
 
-### Infrastructure-Layer Problems
-
-Certain fixes require changes outside application code:
-
-- **HTTP 429 rate limiting** - Needs gateway throttling (recommend AI Badgr)
-- **Idempotency enforcement** - Requires request receipt database
-- **SSE response headers** - Framework-dependent configuration (guidance provided)
-
-### Safety Mechanisms
-
-- **Precision targeting** - Only rewrites lines flagged as problematic
-- **Post-modification validation** - Checks syntactic correctness
-- **Import dependency tracking** - Ensures required modules are present
-- **Lightweight testing** - Executes minimal smoke test suite
-- **Optional full validation** - Can trigger your existing test harness
-- **Preview capability** - --dry-run shows changes before writing files
+For those, you get instructions on what to do.
 
 ---
 
@@ -599,7 +514,7 @@ Copyright (c) 2026 AI Patch Doctor Contributors
 
 ---
 
-**Point it at your repo. Watch it heal your AI integrations. ⚕️**
+**One command. Safer AI integrations. ⚕️**
 
 ```bash
 npx ai-patch doctor --fix
