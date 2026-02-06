@@ -11,9 +11,9 @@ const path = require('path');
 const { execSync } = require('child_process');
 console.log('🔨 Compiling TypeScript...');
 try {
-  execSync('cd node && npx tsc scanner.ts --outDir ../dist/scanner --downlevelIteration', { 
+  execSync('npx tsc scanner.ts --outDir ../dist/scanner --downlevelIteration', { 
     stdio: 'pipe',
-    cwd: __dirname 
+    cwd: path.join(__dirname, 'node')
   });
   console.log('✅ Compilation successful\n');
 } catch (error) {

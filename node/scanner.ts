@@ -56,7 +56,9 @@ function isLikelyInString(line: string, keyword: string): boolean {
   }
   
   // Check for URL patterns (common in examples)
-  if (/https?:\/\//.test(line)) {
+  // Note: This checks if the entire line is primarily a URL/documentation
+  // Lines with both URLs and code will need more sophisticated parsing
+  if (/^[\s"'`]*https?:\/\//.test(line)) {
     return true;
   }
   
@@ -402,7 +404,8 @@ function checkTimeoutIssues(file: string, lines: string[], issues: ScanIssue[]):
   } else {
     // Check ALL timeout lines (not just the first one)
     const isPython = file.endsWith('.py');
-    const timeoutThresholdLow = isPython ? 10 : 10000; // 10 seconds
+    // Python: 10 seconds, JS/TS: 10000 milliseconds (10 seconds)
+    const timeoutThresholdLow = isPython ? 10 : 10000;
     
     lines.forEach((line, index) => {
       if (!isActualCode(line, 'timeout') || !line.includes('timeout')) {
