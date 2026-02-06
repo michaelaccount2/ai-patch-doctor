@@ -6,6 +6,10 @@
   "bin": {
     "ai-patch": "dist/src/cli.js"
   },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
