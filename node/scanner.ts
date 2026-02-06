@@ -10,8 +10,70 @@
  * - Traceability issues (no request IDs)
  */
 
-import fs from 'fs';
-import path from 'path';
+import * as fs from 'fs';
+import * as path from 'path';
+
+/**
+ * Helper function to check if a line is likely in a string/template literal
+ * This helps avoid false positives on documentation and example code
+ */
+function isLikelyInString(line: string, keyword: string): boolean {
+  // Remove leading/trailing whitespace for analysis
+  const trimmed = line.trim();
+  
+  // Check if it's a JSX text node (between tags)
+  if (trimmed.match(/^<[^>]+>.*<\/[^>]+>$/)) {
+    return true;
+  }
+  
+  // Check if keyword appears in a string literal or template
+  const keywordIndex = line.indexOf(keyword);
+  if (keywordIndex === -1) return false;
+  
+  // Count quotes before the keyword
+  const beforeKeyword = line.substring(0, keywordIndex);
+  const singleQuotes = (beforeKeyword.match(/'/g) || []).length;
+  const doubleQuotes = (beforeKeyword.match(/"/g) || []).length;
+  const backticks = (beforeKeyword.match(/`/g) || []).length;
+  
+  // If odd number of quotes before keyword, likely inside string
+  if (singleQuotes % 2 === 1 || doubleQuotes % 2 === 1 || backticks % 2 === 1) {
+    return true;
+  }
+  
+  // Check for common string patterns
+  // e.g., "retry" or 'retry' or `retry`
+  const patterns = [
+    /["'`][^"'`]*retry[^"'`]*["'`]/i,
+    /["'`][^"'`]*timeout[^"'`]*["'`]/i,
+    /["'`][^"'`]*max_tokens[^"'`]*["'`]/i,
+  ];
+  
+  for (const pattern of patterns) {
+    if (pattern.test(line)) {
+      return true;
+    }
+  }
+  
+  // Check for URL patterns (common in examples)
+  if (/https?:\/\//.test(line)) {
+    return true;
+  }
+  
+  // Check for comment patterns
+  if (trimmed.startsWith('//') || trimmed.startsWith('#') || trimmed.startsWith('*')) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Helper to check if line is actual code (not string, comment, or JSX text)
+ */
+function isActualCode(line: string, keyword: string): boolean {
+  return !isLikelyInString(line, keyword);
+}
 
 export interface ScanIssue {
   type: 'streaming' | 'retry' | 'timeout' | '429' | 'cost' | 'traceability';
@@ -61,7 +123,7 @@ export async function scanCodebase(targetDir: string): Promise<ScanResult> {
 function findSourceFiles(dir: string): string[] {
   const files: string[] = [];
   const extensions = ['.js', '.ts', '.jsx', '.tsx', '.py'];
-  const excludeDirs = ['node_modules', '.git', 'dist', 'build', '__pycache__', '.venv', 'venv', '.ai-patch'];
+  const excludeDirs = ['node_modules', '.git', 'dist', 'build', '__pycache__', '.venv', 'venv', '.ai-patch', '.next'];
 
   function walk(currentDir: string) {
     if (!fs.existsSync(currentDir)) {
@@ -204,10 +266,13 @@ function checkRetryIssues(
   issues: ScanIssue[],
   gatewayLayerIssues: ScanIssue[]
 ): void {
+  // Filter out lines that are likely in strings or comments
   const hasRetry = lines.some(line =>
-    line.includes('retry') ||
-    line.includes('attempt') ||
-    line.includes('for') && line.includes('range')
+    isActualCode(line, 'retry') && (
+      line.includes('retry') ||
+      line.includes('attempt') ||
+      (line.includes('for') && line.includes('range'))
+    )
   );
 
   if (!hasRetry) {
@@ -229,73 +294,93 @@ function checkRetryIssues(
   } else {
     // Check for exponential backoff
     const hasExponentialBackoff = lines.some(line =>
-      line.includes('**') || 
-      line.includes('Math.pow') ||
-      line.includes('pow(')
+      isActualCode(line, 'retry') && (
+        line.includes('**') || 
+        line.includes('Math.pow') ||
+        line.includes('pow(')
+      )
     );
 
     if (!hasExponentialBackoff) {
-      const retryLine = lines.findIndex(line => line.includes('retry'));
+      const retryLine = lines.findIndex(line => 
+        isActualCode(line, 'retry') && line.includes('retry')
+      );
       
-      issues.push({
-        type: 'retry',
-        severity: 'warning',
-        file,
-        line: retryLine + 1,
-        message: 'Linear retry detected - should use exponential backoff',
-        suggestion: 'Use exponential backoff: 2^attempt * base_delay',
-        canFixLocally: true
-      });
+      if (retryLine >= 0) {
+        issues.push({
+          type: 'retry',
+          severity: 'warning',
+          file,
+          line: retryLine + 1,
+          message: 'Linear retry detected - should use exponential backoff',
+          suggestion: 'Use exponential backoff: 2^attempt * base_delay',
+          canFixLocally: true
+        });
+      }
     }
 
     // Check for retry cap
     const hasRetryCap = lines.some(line =>
-      line.includes('max_retries') ||
-      line.includes('maxRetries') ||
-      (line.includes('< ') && line.includes('attempt'))
+      isActualCode(line, 'retry') && (
+        line.includes('max_retries') ||
+        line.includes('maxRetries') ||
+        (line.includes('< ') && line.includes('attempt'))
+      )
     );
 
     if (!hasRetryCap) {
-      const retryLine = lines.findIndex(line => line.includes('retry'));
+      const retryLine = lines.findIndex(line => 
+        isActualCode(line, 'retry') && line.includes('retry')
+      );
       
-      gatewayLayerIssues.push({
-        type: 'retry',
-        severity: 'error',
-        file,
-        line: retryLine + 1,
-        message: 'No retry cap detected - risk of infinite retry storms',
-        suggestion: 'This requires gateway-layer enforcement',
-        canFixLocally: false
-      });
+      if (retryLine >= 0) {
+        gatewayLayerIssues.push({
+          type: 'retry',
+          severity: 'error',
+          file,
+          line: retryLine + 1,
+          message: 'No retry cap detected - risk of infinite retry storms',
+          suggestion: 'This requires gateway-layer enforcement',
+          canFixLocally: false
+        });
+      }
     }
 
     // Check for jitter
     const hasJitter = lines.some(line =>
-      line.includes('random') ||
-      line.includes('Math.random') ||
-      line.includes('jitter')
+      isActualCode(line, 'retry') && (
+        line.includes('random') ||
+        line.includes('Math.random') ||
+        line.includes('jitter')
+      )
     );
 
     if (!hasJitter) {
-      const retryLine = lines.findIndex(line => line.includes('retry'));
+      const retryLine = lines.findIndex(line => 
+        isActualCode(line, 'retry') && line.includes('retry')
+      );
       
-      issues.push({
-        type: 'retry',
-        severity: 'info',
-        file,
-        line: retryLine + 1,
-        message: 'No jitter detected in retry logic',
-        suggestion: 'Add random jitter to prevent thundering herd',
-        canFixLocally: true
-      });
+      if (retryLine >= 0) {
+        issues.push({
+          type: 'retry',
+          severity: 'info',
+          file,
+          line: retryLine + 1,
+          message: 'No jitter detected in retry logic',
+          suggestion: 'Add random jitter to prevent thundering herd',
+          canFixLocally: true
+        });
+      }
     }
   }
 }
 
 function checkTimeoutIssues(file: string, lines: string[], issues: ScanIssue[]): void {
   const hasTimeout = lines.some(line =>
-    line.includes('timeout') ||
-    line.includes('Timeout')
+    isActualCode(line, 'timeout') && (
+      line.includes('timeout') ||
+      line.includes('Timeout')
+    )
   );
 
   if (!hasTimeout) {
@@ -315,26 +400,37 @@ function checkTimeoutIssues(file: string, lines: string[], issues: ScanIssue[]):
       });
     }
   } else {
-    // Check if timeout is too low
-    const timeoutLine = lines.find(line => line.includes('timeout'));
-    if (timeoutLine) {
-      const match = timeoutLine.match(/timeout[:\s=]+(\d+)/);
+    // Check ALL timeout lines (not just the first one)
+    const isPython = file.endsWith('.py');
+    const timeoutThresholdLow = isPython ? 10 : 10000; // 10 seconds
+    
+    lines.forEach((line, index) => {
+      if (!isActualCode(line, 'timeout') || !line.includes('timeout')) {
+        return;
+      }
+      
+      const match = line.match(/timeout[:\s=]+(\d+)/);
       if (match) {
         const timeout = parseInt(match[1], 10);
-        if (timeout < 10000) { // Less than 10 seconds
-          const lineNum = lines.indexOf(timeoutLine);
+        
+        if (timeout < timeoutThresholdLow) {
+          const unit = isPython ? 's' : 'ms';
+          const suggestion = isPython 
+            ? 'Increase timeout to at least 30s' 
+            : 'Increase timeout to at least 30000ms (30s)';
+          
           issues.push({
             type: 'timeout',
             severity: 'warning',
             file,
-            line: lineNum + 1,
-            message: `Timeout ${timeout}ms is too low for AI APIs`,
-            suggestion: 'Increase timeout to at least 30000ms (30s)',
+            line: index + 1,
+            message: `Timeout ${timeout}${unit} is too low for AI APIs`,
+            suggestion,
             canFixLocally: true
           });
         }
       }
-    }
+    });
   }
 }
 
@@ -391,8 +487,10 @@ function check429Handling(
 
 function checkCostIssues(file: string, lines: string[], issues: ScanIssue[]): void {
   const hasMaxTokens = lines.some(line =>
-    line.includes('max_tokens') ||
-    line.includes('maxTokens')
+    isActualCode(line, 'max_tokens') && (
+      line.includes('max_tokens') ||
+      line.includes('maxTokens')
+    )
   );
 
   if (!hasMaxTokens) {
@@ -414,7 +512,9 @@ function checkCostIssues(file: string, lines: string[], issues: ScanIssue[]): vo
   } else {
     // Check if max_tokens is too high
     const maxTokensLine = lines.find(line => 
-      line.includes('max_tokens') || line.includes('maxTokens')
+      isActualCode(line, 'max_tokens') && (
+        line.includes('max_tokens') || line.includes('maxTokens')
+      )
     );
     
     if (maxTokensLine) {
