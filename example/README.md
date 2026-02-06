@@ -4,7 +4,7 @@ This folder contains examples of how to use the AI Patch Doctor GitHub Action in
 
 ## Basic Usage
 
-The simplest way to use this action is shown in `workflow-example.yml`:
+The simplest way to use this action is shown in `workflow.yml`:
 
 ```yaml
 name: AI Doctor
