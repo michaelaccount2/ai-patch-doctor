@@ -183,7 +183,7 @@ describe('AI Patch Doctor - Code Reuse & Structure', () => {
     test('README contains key sections', () => {
       const docPath = path.join(__dirname, 'README.md');
       const content = fs.readFileSync(docPath, 'utf8');
-      expect(content).toContain('Quick Start');
+      expect(content).toContain('Getting Started');
       expect(content).toContain('Installation');
       expect(content).toContain('Architecture');
       expect(content).toContain('The 4 Wedge Checks');
